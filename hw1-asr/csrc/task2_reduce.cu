@@ -43,6 +43,16 @@ __global__ void rmsnorm_kernel(const float* x, const float* weight, float* y, in
   // ======================== BLANK 2.5 =========================
   // RMSNorm of this row: y = x / sqrt(mean(x^2) + eps) * weight.
   // YOUR CODE HERE
+  float sq = 0.0f;
+  for (int c = threadIdx.x; c < cols; c += blockDim.x) {
+    float val = xr[c];
+    sq += val * val;
+  }
+  const float mean_sq = block_reduce_sum(sq) / cols;
+  const float rstd = rsqrtf(mean_sq + eps);
+  for (int c = threadIdx.x; c < cols; c += blockDim.x) {
+    yr[c] = xr[c] * rstd * weight[c];
+  }
   // ============================================================
 }
 
@@ -59,11 +69,38 @@ __global__ void softmax_kernel(const float* x, float* y, int cols) {
   // Pass 1: set row_max and row_sum (the sum of exp(x - row_max) over the row),
   // reading x only once, with MaxSum.
   // YOUR CODE HERE
+  MaxSum ms = {-INFINITY, 0.0f};
+  for (int c = threadIdx.x; c < cols; c += blockDim.x) {
+    ms = maxsum_merge(ms, {xr[c], 1.0f});
+  }
+  __shared__ MaxSum partial[WARP_SIZE];
+  const int lane = threadIdx.x % WARP_SIZE;
+  const int warp = threadIdx.x / WARP_SIZE;
+  const int num_warps = blockDim.x / WARP_SIZE;
+  for (int offset = WARP_SIZE / 2; offset > 0; offset /= 2) {
+    float om = __shfl_xor_sync(FULL_MASK, ms.m, offset);
+    float ol = __shfl_xor_sync(FULL_MASK, ms.l, offset);
+    ms = maxsum_merge(ms, {om, ol});
+  }
+  if (lane == 0) partial[warp] = ms;
+  __syncthreads();
+  ms = (lane < num_warps) ? partial[lane] : MaxSum{-INFINITY, 0.0f};
+  for (int offset = WARP_SIZE / 2; offset > 0; offset /= 2) {
+    float om = __shfl_xor_sync(FULL_MASK, ms.m, offset);
+    float ol = __shfl_xor_sync(FULL_MASK, ms.l, offset);
+    ms = maxsum_merge(ms, {om, ol});
+  }
+  __syncthreads();
+  row_max = ms.m;
+  row_sum = ms.l;
   // ============================================================
 
   // ======================== BLANK 2.7 =========================
   // Pass 2: y = exp(x - row_max) / row_sum.
   // YOUR CODE HERE
+  for (int c = threadIdx.x; c < cols; c += blockDim.x) {
+    yr[c] = expf(xr[c] - row_max) / row_sum;
+  }
   // ============================================================
 }
 
