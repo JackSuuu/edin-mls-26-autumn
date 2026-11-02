@@ -93,10 +93,10 @@ over \texttt{[batch, seq\_len, heads, head\_dim]} layouts, not floating-point
 novelty.
 
 The baseline is the supplied skeleton with empty blanks and PyTorch fallbacks
-(\texttt{./run.sh --cuda none}). My work fills the kernels and measures
-correctness (\texttt{make test1--4}) plus end-to-end transcription accuracy.
-This section focuses on Task~1; later tasks and the RAG extension follow the
-same quality--cost evaluation pattern.
+(\texttt{./run.sh --cuda none}). We filled all four kernel groups, verified each
+with \texttt{make test1} through \texttt{make test4}, and checked the full model
+with \texttt{./run.sh} (all CUDA groups). The RAG extension is still outstanding;
+this report documents the ASR kernel work first.
 
 \section{System and Technical Approach}
 \label{sec:approach}
@@ -123,6 +123,31 @@ Implementation choices: \texttt{ROPE\_THREADS}$=256$ blocks sized by
 computed per pair (no lookup table). Blanks~1.1--1.4 implement indexing and the
 rotation; \texttt{launch\_rope} is unchanged.
 
+\subsection{Task 2: warp/block reductions, RMSNorm, softmax}
+Part~A (\texttt{task2\_reduce.cuh}) implements \texttt{warp\_reduce\_sum/max} with
+\texttt{\_\_shfl\_xor\_sync} and \texttt{block\_reduce\_sum/max} via a
+\texttt{partial[]} staging buffer and two barriers. Part~B builds
+\texttt{rmsnorm\_kernel} (row-wise RMS scale with learned weights) and
+\texttt{softmax\_kernel} using the online \texttt{MaxSum} merge from the guide so
+each row is read once. Task~4 reuses the warp helpers for tile-wise probability sums.
+
+\subsection{Task 3: shared-memory tiled GEMM}
+Following the lecture tiled GEMM, each $16\times 16$ thread block computes a
+tile of $y = \mathrm{GELU}(x W^\top + b)$ with \texttt{TILE=16}, loading
+\texttt{x} and transposed \texttt{W} into \texttt{\_\_shared\_\_} buffers each
+$K$-step. Padding \texttt{ws} with \texttt{[TILE][TILE+1]} avoids bank conflicts;
+out-of-bounds loads use zero so every thread hits both \texttt{\_\_syncthreads()} calls.
+
+\subsection{Task 4: tiled attention with online softmax}
+Each block covers \texttt{ATTN\_WARPS=4} queries of one head; each warp streams
+keys/values in tiles of 32 through dynamic shared memory (\texttt{k\_tile},
+\texttt{v\_tile}, cached scaled queries). Running statistics $(m,\ell,\mathrm{acc})$
+implement FlashAttention-style online softmax with \texttt{corr$=\exp(m-m_{\mathrm{new}})$}
+when a tile raises the max. Causal masking sets scores to $-\infty$ past
+\texttt{last\_key}; GQA maps \texttt{kv\_h = h / (num\_heads/num\_kv\_heads)}.
+Blank~4.5 must broadcast each lane's probability with \texttt{\_\_shfl\_sync} so
+every lane accumulates $\sum_r p_r v_r$ across all keys in the tile (not only its own lane).
+
 \section{Experimental Methodology}
 \label{sec:methodology}
 
@@ -133,12 +158,12 @@ ${\sim}768$~GB/s peak DRAM bandwidth).
 transformers~5.0); CUDA via \texttt{/usr/local/cuda}; repository
 \texttt{edin-mls-26-autumn/hw1-asr}.
 
-\textbf{Quality metrics:} per-case \texttt{max\_err} against CPU reference
-(\texttt{make test1}); transcription string match on \texttt{test\_audio.wav}
-(\texttt{./run.sh --cuda task1}).
+\textbf{Quality metrics:} per-case \texttt{max\_err} against CPU references
+(\texttt{make test1--4}); transcription string match on \texttt{test\_audio.wav}
+(\texttt{./run.sh} with all CUDA kernel groups).
 
-\textbf{Cost metrics:} kernel latency (ms) and effective bandwidth (GB/s) printed
-by the test harness; share of peak bandwidth for the memory-bound encoder case.
+\textbf{Cost metrics:} per-kernel latency or GFLOP/s from tests; end-to-end ms/token
+and \texttt{--profile} operation shares on the full model.
 
 \textbf{Controls:} same GPU for all sweeps; rebuild with \texttt{make clean}
 when changing \texttt{NVCCFLAGS}; default \texttt{-O3 -std=c++17 -lineinfo}
@@ -224,20 +249,44 @@ drift from the CPU reference. Decoder angles stay smaller ($\mathrm{seq}{=}64$),
 so fast math still passes. I restored default flags after the experiment
 (\texttt{make clean} then \texttt{make}).
 
+\subsection{Tasks 2--4: tests and full ASR run}
+\texttt{make test2} through \texttt{make test4} all report \textbf{ALL PASS} on the
+RTX A6000 (encoder attention ${\sim}8.6$~ms, ${\sim}1338$~GFLOP/s in the harness).
+\texttt{./run.sh} with every group on CUDA transcribes correctly (${\sim}1961$~ms per
+utterance vs.\ ${\sim}475$~ms with only Task~1 on CUDA---GEMM dominates). Profile:
+\texttt{linear} ${\sim}82.5\%$ of GPU time, \texttt{attention} ${\sim}15.2\%$,
+remaining norms/activations under $2\%$ each.
+
+\textbf{Task 2 (guide).} Reductions combine per-thread partials without atomics;
+RMSNorm needs one block-wide sum of squares; online softmax avoids three passes over
+each row. Warp shuffles beat shared-memory trees inside a warp because they skip
+memory round-trips.
+
+\textbf{Task 3 (guide).} Encoder \texttt{fc1} alone is $1500\times5120\times1280$ MACs;
+tiled GEMM cuts global reads by reusing each loaded element across \texttt{TILE}
+threads. Our kernel reaches hundreds of GFLOP/s on large cases but remains below
+cuBLAS because we do not use tensor cores or CUTLASS.
+
+\textbf{Task 4 (guide).} A dense encoder score tensor would be
+$20 \times 1500 \times 1500 \times 4 \approx 172$~MiB per layer; one block uses
+${\sim}48$~KiB shared memory for a 32-key tile instead. All warps in a block must
+execute the same tile iterations because of \texttt{\_\_syncthreads()} between loads;
+per-warp early exit would deadlock. When a tile does not raise $m$, $\mathrm{corr}=1$;
+$m_{\mathrm{new}}$ stays $-\infty$ only before any valid score is seen---then
+$\mathrm{corr}$ is guarded to avoid NaNs. With four queries per block, each key is
+loaded once per four queries; larger \texttt{ATTN\_WARPS} amortises loads but raises
+shared memory and register pressure.
+
 \section{Discussion and Conclusion}
 \label{sec:conclusion}
 
-Task~1 confirms that RoPE is memory-bound on realistic encoder shapes and that
-correct indexing across batched $q/k$ layouts matters as much as the rotation
-math. Launch configuration is secondary once block size is reasonable ($\geq 64$
-threads). Fast math is unsafe for large angles---a systems lesson for any kernel
-that applies transcendental functions per element.
-
-Remaining ASR tasks (reductions, tiled GEMM, attention) dominate end-to-end time;
-the RAG track will add retrieval and generation cost. Future work: complete
-Tasks~2--4 with the same test-plus-transcription methodology, compare
-\texttt{--profile} against \texttt{--cuda none}, then evaluate RAG quality and
-latency with optional CUDA ASR integration.
+All four ASR kernels pass unit tests and the reference transcription on CUDA.
+RoPE is memory-bound; GEMM sets end-to-end latency; attention is the next largest
+cost but still streaming-friendly compared with materialising scores. The main
+implementation pitfall in Task~4 was treating each lane's $p$ as local to its key
+when updating $\mathrm{acc}$---cross-lane shuffle is required. Fast math remains
+unsafe for RoPE at large angles. Next: RAG quality/latency experiments and optional
+comparison of CUDA ASR vs.\ PyTorch inside the RAG pipeline.
 
 % References are excluded from the main-body page limit.
 \bibliography{references}
@@ -245,24 +294,20 @@ latency with optional CUDA ASR integration.
 
 % Put your Appendix here if needed. Comment out if you don't need it.
 \appendix
-\section{Task 1 reproduction commands}
-\label{app:task1-repro}
+\section{ASR reproduction commands}
+\label{app:repro}
 
 \begin{verbatim}
 conda activate mls-asr
 export PATH=/usr/local/cuda/bin:$PATH
 cd edin-mls-26-autumn/hw1-asr
-make test1
-./run.sh --cuda task1
-# ROPE_THREADS sweep: edit csrc/task1_rope.cu, then make test1
-# Fast math: make clean && make test1 \
-#   NVCCFLAGS="-O3 -std=c++17 -lineinfo -diag-suppress 177 --use_fast_math"
+make test          # or make test1 .. test4
+./run.sh           # all CUDA kernels
+./run.sh --profile
 \end{verbatim}
 
-\section{Placeholder: later tasks and RAG}
-Add \texttt{make test2--4}, full \texttt{./run.sh --profile} output, and RAG
-experiments here or in the main body when complete. Reviewers are not obliged to
-read appendices; keep essential claims in Sections~\ref{sec:results}--\ref{sec:conclusion}.
+\section{RAG placeholder}
+RAG experiments and evaluation to be added when complete.
 
 % Keep this line unchanged.
 \newpage
@@ -279,9 +324,8 @@ read appendices; keep essential claims in Sections~\ref{sec:results}--\ref{sec:c
 \section*{AI declaration}
 I used AI coding assistants (including Cursor/ELM) to help run GPU experiments,
 derive bandwidth accounting, and draft LaTeX text for this report. I reviewed
-all kernel code, re-ran \texttt{make test1} and \texttt{./run.sh --cuda task1}
-on my machine, and edited the final wording. I remain responsible for the
-submitted work.
+all kernel code, re-ran \texttt{make test} and \texttt{./run.sh} on my machine,
+and edited the final wording. I remain responsible for the submitted work.
 
 % Please put the information of your group here without changing the format.
 % This page will be deleted when the report is distributed for reviewing.

@@ -118,7 +118,7 @@ __global__ void attention_kernel(const float* q, const float* k, const float* v,
     // key (last_key).
     // YOUR CODE HERE
     {
-      if (active && j0 + lane <= last_key) {
+      if (active && j0 + lane <= last_key && j0 + lane < seq_k) {
         float sum = 0.0f;
         for (int d = 0; d < head_dim; d++) {
           sum += qv[d] * k_tile[lane * k_pitch + d];
@@ -135,7 +135,7 @@ __global__ void attention_kernel(const float* q, const float* k, const float* v,
     {
       float tile_max = warp_reduce_max(s);
       float m_new = fmaxf(m, tile_max);
-      float corr = expf(m - m_new);
+      float corr = (m_new > -INFINITY) ? expf(m - m_new) : 1.0f;
 
       l *= corr;
       for (int di = 0; di < dims; di++) acc[di] *= corr;
@@ -151,9 +151,12 @@ __global__ void attention_kernel(const float* q, const float* k, const float* v,
     // Add this tile's values, weighted by p, to acc.
     // YOUR CODE HERE
     {
-      for (int di = 0; di < dims; di++) {
-        int d = lane + di * WARP_SIZE;
-        acc[di] += p * v_tile[lane * head_dim + d];
+      for (int r = 0; r < KV_TILE; r++) {
+        float pr = __shfl_sync(FULL_MASK, p, r);
+        for (int di = 0; di < dims; di++) {
+          int d = lane + di * WARP_SIZE;
+          acc[di] += pr * v_tile[r * head_dim + d];
+        }
       }
     }
     // ============================================================
