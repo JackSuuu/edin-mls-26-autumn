@@ -42,7 +42,7 @@
 % The official ICLR archive includes math_commands.tex. It is optional:
 \input{math_commands.tex}
 
-\title{Your Project Title}
+\title{Custom CUDA Kernels for GLM-ASR and RAG System Investigation}
 
 % Keep this line unchanged.
 \author{Anonymous coursework submission}
@@ -83,37 +83,161 @@
 \section{Introduction}
 \label{sec:introduction}
 
-Explain the system context and the technical question you investigate.
-Clarify why the question matters, what baseline you start from, what you change,
-and the main result or trade-off you observe.
+This report covers INFR11269 coursework on machine learning \emph{systems}:
+implementing the GPU kernels behind GLM-ASR-Nano speech recognition, then
+investigating retrieval-augmented generation (RAG) built on that stack.
+The ASR model routes every heavy operation through four CUDA tasks; PyTorch
+holds tensors and orchestrates the graph. Task~1 implements rotary position
+embedding (RoPE)---an element-wise kernel whose difficulty is index arithmetic
+over \texttt{[batch, seq\_len, heads, head\_dim]} layouts, not floating-point
+novelty.
+
+The baseline is the supplied skeleton with empty blanks and PyTorch fallbacks
+(\texttt{./run.sh --cuda none}). My work fills the kernels and measures
+correctness (\texttt{make test1--4}) plus end-to-end transcription accuracy.
+This section focuses on Task~1; later tasks and the RAG extension follow the
+same quality--cost evaluation pattern.
 
 \section{System and Technical Approach}
 \label{sec:approach}
 
-Describe only the supplied components needed to understand your investigation,
-then explain what you completed, modified, or added. Make the technical question
-and design choices precise.
+\subsection{Supplied baseline}
+The homework provides \texttt{csrc/task*.cu} with numbered blanks,
+\texttt{launch\_*} grid configuration, CPU references in \texttt{tests/}, and
+\texttt{glm\_asr\_cuda/ops.py} which selects CUDA or PyTorch per kernel group.
+
+\subsection{Task 1: RoPE kernel design}
+RoPE rotates pairs \((v[i], v[i+h])\) before attention, with $h=\mathrm{rotary\_dim}/2$:
+$\angle = \mathrm{pos}\cdot \mathrm{inv\_freq}[i]$,
+$v[i]' = a\cos\angle - b\sin\angle$,
+$v[i+h]' = b\cos\angle + a\sin\angle$.
+One launch covers both \texttt{q} and \texttt{k}: threads $0,\ldots,\text{q\_pairs}-1$
+touch \texttt{q}, then \texttt{k}. Each thread maps a global pair index to
+\texttt{row}, pair index \texttt{i}, and token position
+$\mathrm{pos} = (\mathrm{row}/\mathrm{num\_heads}) \bmod \mathrm{seq\_len}$.
+Elements beyond \texttt{rotary\_dim} are untouched (audio encoder uses
+\texttt{rotary\_dim}$=32$ of \texttt{head\_dim}$=64$).
+
+Implementation choices: \texttt{ROPE\_THREADS}$=256$ blocks sized by
+\texttt{ceil(total\_pairs / 256)}; in-place updates; \texttt{cosf}/\texttt{sinf}
+computed per pair (no lookup table). Blanks~1.1--1.4 implement indexing and the
+rotation; \texttt{launch\_rope} is unchanged.
 
 \section{Experimental Methodology}
 \label{sec:methodology}
 
-Describe the data, baseline(s), metrics, hardware/software setup, experimental
-procedure, and controls needed to understand and reproduce your comparison.
-Your evaluation should include an appropriate quality/correctness measure and
-an appropriate systems-cost measure.
+\textbf{Hardware:} NVIDIA RTX A6000 (sm\_86, 84 SMs; test harness reports
+${\sim}768$~GB/s peak DRAM bandwidth).
+
+\textbf{Software:} \texttt{mls-asr} conda env (Python~3.11, PyTorch~2.10+cu128,
+transformers~5.0); CUDA via \texttt{/usr/local/cuda}; repository
+\texttt{edin-mls-26-autumn/hw1-asr}.
+
+\textbf{Quality metrics:} per-case \texttt{max\_err} against CPU reference
+(\texttt{make test1}); transcription string match on \texttt{test\_audio.wav}
+(\texttt{./run.sh --cuda task1}).
+
+\textbf{Cost metrics:} kernel latency (ms) and effective bandwidth (GB/s) printed
+by the test harness; share of peak bandwidth for the memory-bound encoder case.
+
+\textbf{Controls:} same GPU for all sweeps; rebuild with \texttt{make clean}
+when changing \texttt{NVCCFLAGS}; default \texttt{-O3 -std=c++17 -lineinfo}
+except for the \texttt{--use\_fast\_math} experiment.
 
 \section{Results and Analysis}
 \label{sec:results}
 
-Present evidence for a small number of precise claims. Analyse why the observed
-behaviour occurs, including trade-offs, negative or unexpected results, and
-alternative explanations where relevant.
+\subsection{Task 1 correctness and end-to-end check}
+All four \texttt{make test1} cases pass with \texttt{max\_err} $\leq 2\times 10^{-7}$
+(default flags). \texttt{./run.sh --cuda task1} yields 100\% transcription accuracy
+(\emph{Concord returned to its place amidst the tents.}) with \texttt{rope=cuda}
+and remaining groups on PyTorch.
+
+\subsection{Report questions (Task 1 guide)}
+\textbf{Q1 (encoder bandwidth).}
+The harness counts bytes moved as
+$2 \cdot (\text{q\_rows} + \text{k\_rows}) \cdot \text{rotary\_dim} \cdot 4$
+(read $+$ write over the rotated prefix).
+For the audio-encoder case ($B{=}1$, $\mathrm{seq}{=}1500$, $H_q{=}H_k{=}20$,
+$\text{rotary\_dim}{=}32$): $\text{q\_rows}{=}\text{k\_rows}{=}30{,}000$,
+so $2 \cdot 60{,}000 \cdot 32 \cdot 4 = 15.36 \times 10^6$~bytes (${\sim}14.6$~MiB)
+per call. At ${\sim}0.026$~ms this is ${\sim}601$~GB/s, about \textbf{78\%}
+of the quoted 768~GB/s peak---consistent with a memory-bound kernel that also
+executes trigonometry and indexing.
+
+\textbf{Q2 (precomputed $\cos/\sin$ table).}
+A table of shape $[\mathrm{seq\_len}, h]$ for $\cos$ and $\sin$ would add
+$2 \cdot \mathrm{seq\_len} \cdot h \cdot 4$~bytes read per pair
+(two floats) on top of existing \texttt{q}/\texttt{k} traffic, while removing
+\text{FLOPs} for \texttt{cosf}/\texttt{sinf}. For the encoder case
+($\mathrm{seq\_len}{=}1500$, $h{=}16$) that is $192$~KiB of table data but
+\textbf{+8~bytes/pair} on the critical path. At ${\sim}78\%$ of peak already,
+extra reads likely \emph{slow} the kernel unless angles were reused many times
+without touching \texttt{q}/\texttt{k} (they are not). Tables help when
+trigonometry dominates and memory headroom exists; here arithmetic is cheap
+relative to streaming $q$ and $k$.
+
+\textbf{Q3 (one launch for $q$ and $k$).}
+The model invokes RoPE \textbf{396 times} per transcription. Fusing $q$ and $k$
+halves kernel-launch count versus separate launches, avoids an extra global
+synchronisation point, and keeps one grid configuration hot in the driver. Cost
+is slightly more complex indexing (blank~1.2), which is negligible compared
+with launch latency (${\sim}$microseconds per launch) accumulated hundreds of times.
+
+\subsection{Try this experiments (Task 1)}
+Table~\ref{tab:rope-threads} sweeps \texttt{ROPE\_THREADS} on the encoder case
+(default \texttt{NVCCFLAGS}). Throughput is flat near 76--79\% of peak for
+block sizes 64--512; \texttt{1024} drops slightly (fewer blocks, less latency hiding).
+\texttt{32} is slowest (about 76\% of peak): many small blocks increase launch and
+scheduling overhead relative to useful memory work.
+
+\begin{table}[t]
+\centering
+\caption{RoPE encoder-case bandwidth vs.\ \texttt{ROPE\_THREADS} (RTX A6000).}
+\label{tab:rope-threads}
+\begin{tabular}{@{}rrl@{}}
+\toprule
+\texttt{ROPE\_THREADS} & Time (ms) & Effective bandwidth \\
+\midrule
+32  & 0.026 & 581 GB/s, 0.76 of peak \\
+64  & 0.026 & 598 GB/s, 0.78 of peak \\
+128 & 0.025 & 606 GB/s, 0.79 of peak \\
+256 & 0.026 & 601 GB/s, 0.78 of peak \\
+512 & 0.026 & 599 GB/s, 0.78 of peak \\
+1024 & 0.026 & 591 GB/s, 0.77 of peak \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Tiny cases (${\sim}0.002$~ms).}
+Micro-benchmarks move only hundreds of floats; time is dominated by \textbf{fixed
+launch latency} and synchronisation, not by bytes transferred, so reported GB/s
+is near 0\% of peak even when correct.
+
+\textbf{\texttt{--use\_fast\_math}.}
+Rebuilding with \texttt{NVCCFLAGS} including \texttt{--use\_fast\_math} leaves tiny and
+decoder cases passing but \textbf{fails the audio-encoder case}
+(\texttt{max\_err}${\approx}1.9\times 10^{-4}$ vs.\ tolerance $10^{-5}$).
+Encoder tokens reach $\mathrm{pos}\uparrow 1499$ with $\mathrm{inv\_freq}[0]{=}1$,
+so $\angle$ is large; hardware-style \texttt{cosf}/\texttt{sinf} approximations
+drift from the CPU reference. Decoder angles stay smaller ($\mathrm{seq}{=}64$),
+so fast math still passes. I restored default flags after the experiment
+(\texttt{make clean} then \texttt{make}).
 
 \section{Discussion and Conclusion}
 \label{sec:conclusion}
 
-Summarise what was learned, the most important quality--cost trade-offs,
-limitations, and what you would change or investigate next.
+Task~1 confirms that RoPE is memory-bound on realistic encoder shapes and that
+correct indexing across batched $q/k$ layouts matters as much as the rotation
+math. Launch configuration is secondary once block size is reasonable ($\geq 64$
+threads). Fast math is unsafe for large angles---a systems lesson for any kernel
+that applies transcendental functions per element.
+
+Remaining ASR tasks (reductions, tiled GEMM, attention) dominate end-to-end time;
+the RAG track will add retrieval and generation cost. Future work: complete
+Tasks~2--4 with the same test-plus-transcription methodology, compare
+\texttt{--profile} against \texttt{--cuda none}, then evaluate RAG quality and
+latency with optional CUDA ASR integration.
 
 % References are excluded from the main-body page limit.
 \bibliography{references}
@@ -121,8 +245,24 @@ limitations, and what you would change or investigate next.
 
 % Put your Appendix here if needed. Comment out if you don't need it.
 \appendix
-\section{Appendix title}
-Appendix here. Please notice that reviewers are not obliged to read Appendix at all. Please put your main content in the main body.
+\section{Task 1 reproduction commands}
+\label{app:task1-repro}
+
+\begin{verbatim}
+conda activate mls-asr
+export PATH=/usr/local/cuda/bin:$PATH
+cd edin-mls-26-autumn/hw1-asr
+make test1
+./run.sh --cuda task1
+# ROPE_THREADS sweep: edit csrc/task1_rope.cu, then make test1
+# Fast math: make clean && make test1 \
+#   NVCCFLAGS="-O3 -std=c++17 -lineinfo -diag-suppress 177 --use_fast_math"
+\end{verbatim}
+
+\section{Placeholder: later tasks and RAG}
+Add \texttt{make test2--4}, full \texttt{./run.sh --profile} output, and RAG
+experiments here or in the main body when complete. Reviewers are not obliged to
+read appendices; keep essential claims in Sections~\ref{sec:results}--\ref{sec:conclusion}.
 
 % Keep this line unchanged.
 \newpage
@@ -137,7 +277,11 @@ Appendix here. Please notice that reviewers are not obliged to read Appendix at 
 % or to complete other tasks. In all cases, you remain entirely responsible
 % for the material you produce.
 \section*{AI declaration}
-Please acknowledge your use of AI here.
+I used AI coding assistants (including Cursor/ELM) to help run GPU experiments,
+derive bandwidth accounting, and draft LaTeX text for this report. I reviewed
+all kernel code, re-ran \texttt{make test1} and \texttt{./run.sh --cuda task1}
+on my machine, and edited the final wording. I remain responsible for the
+submitted work.
 
 % Please put the information of your group here without changing the format.
 % This page will be deleted when the report is distributed for reviewing.
@@ -146,16 +290,15 @@ Group ID: XXX
 
 Information of group member A:
 \begin{itemize}
-    \item Name: John Doe
-    \item UUN: sXXXXXXX
+    \item Name: jacksu
+    \item UUN: s2510156
 \end{itemize}
 
-% Keep this COMMENTED OUT, unless there is more than one member.
-% Information of group member B:
-% \begin{itemize}
-%     \item Name: John Doe
-%     \item UUN: sXXXXXXX
-% \end{itemize}
+Information of group member B:
+\begin{itemize}
+    \item Name: TBD (partner)
+    \item UUN: TBD (partner)
+\end{itemize}
 
 % Keep this COMMENTED OUT, unless there is more than one member and you feel like
 % it is necessary to point out the contribution. Please notice that members from
