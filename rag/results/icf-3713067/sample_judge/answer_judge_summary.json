@@ -1,0 +1,16 @@
+{
+  "script_version": "v0.3-public-answer-judge",
+  "rubric_version": "rag-answer-rubric-v0.1",
+  "judge_model": "utter-project/EuroLLM-22B-Instruct-2512",
+  "question_mode": "transcript",
+  "split": "practice",
+  "queries": 5,
+  "expected_queries": 350,
+  "coverage": 0.014285714285714285,
+  "is_subset": true,
+  "repeats": 1,
+  "mean_correctness": 1.6,
+  "mean_grounding": 2.0,
+  "mean_completeness": 1.2,
+  "mean_normalised_answer_score": 0.4
+}

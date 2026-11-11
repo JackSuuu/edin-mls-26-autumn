@@ -210,6 +210,11 @@ define compatible query encoding or a justified mapping when using enc_b.
 
 ## Report and tests
 
+The recorded ICF baseline is documented in
+[baseline-3713067.md](experiments/baseline-3713067.md), including configuration,
+evaluation coverage, results and reproduction evidence. Preserve its transcript
+cache and results when comparing alternative RAG methods.
+
 Follow [the shared report guide](../report/README.md). The main body is limited
 to six pages, excluding references and optional appendices. Keep essential
 arguments and results in the main body; reviewers are not obliged to read

@@ -1,0 +1,37 @@
+{
+  "transcript": "Understanding sales tax implications when purchasing items in a retail store.",
+  "retrieval": {
+    "record_ids": [
+      "r_53736721cc137da0",
+      "r_e5b65dad238e9ce2",
+      "r_08e4c7b8ff7f8a35",
+      "r_d3d616d42b2a83b4",
+      "r_0f6650dd9e3bc5cb"
+    ],
+    "scores": [
+      0.8767289519309998,
+      0.8755813241004944,
+      0.8749030828475952,
+      0.8725689649581909,
+      0.8701605796813965
+    ],
+    "latency_ms": 24.69118102453649
+  },
+  "contexts": [
+    "\"Actually, calculating taxes isn't that difficult. You will pay a percentage of your gross sales to state and local sales tax, and as a single-owner LLC your profits (after sales taxes) should pass through to your individual tax tax return (according to this IRS article. They are not cumulative since they have different bases (gross sales versus net profit). That said, when determining if your future business is profitable, you need to ask \"\"what aspects of the business can I control\"\"? Can you control how much each item sells for? Increasing your prices will increase your gross margins, which should be higher than your fixed and variable costs. If your margins do not exceed your costs, then you will note be profitable. Note that as a vendor you are at a slight disadvantage to a retailer, since tax has to be baked in to your prices. A retailer can advertise the pre-tax price, and pass-through sales tax at the point of sale. However, people expect to pay more at a vending machine, so the disadvantage is very small (you aren't directly competing with retailers anyways).\"",
+    "You're not paying taxes three times but you are paying three different taxes (or more). Sales tax is a business expense, just like costs of goods sold or interest on a loan. Then, depending on how you structure the business, the net income of the business just hits you personally and you pay income taxes. You can work with a tax person to lend some efficiency to this on a long term basis, but it's not like you pay all the taxes against your gross receipts. Whether or not you can make this profitable is a whole different issue.",
+    "I'll address one part of your question: There are other taxes that companies pay as well, such as income tax, but don't charge to the customer as a fee. So, why are gross receipts taxes charged to the customer? Things like income tax can't be passed on to the consumer in a direct way, because there's no fixed relationship between the amount of the tax and the price of an individual product. Income tax is paid on taxable income, which will incorporate deductions for the costs the company incurred to do business. So the final amount of corporate income tax can depend on things unrelated to the price of goods sold, like whether the business decided to repave their parking lot. Gross receipts taxes, by definition, are charged on the total amount of money taken in, so every dollar you spend on an item at the store will be subject to the gross receipts tax, and hence will cost the business 7 cents (or X% where X is the tax rate). This means there is a direct link between the price you pay for an individual item and the tax they pay on that transaction. The same is true for sales taxes, which are also often added at the time of sale. Of course, businesses could roll all of these into the posted price as well. The reason they don't is to get their foot in the door and make the price seem lower: you're more likely to buy something if you see it for the low, low, one-time-only price of $99.99, act now, save big, and then find out you owe an extra $7 at the register than if you saw $107 on the price tag.",
+    "States have made sales tax more confusing by expanding some categories and shrinking or eliminating other categories. In days of old there were taxes on items, and specific taxes on other small categories such as fuel and cigarets . In many states there were taxes implemented state wide, and in other cases they only applied to a specific city or region. As time went on taxes could be raised to bring in more money for the state or local government, but these tax increase were seen as unfair to the poor. So now the states are modifying and tweaking the tax rates. Some items are tax free, some have a low tax, and some are at the full tax rate. This can get confusing because the type of store can also play a factor. A bag a chips from a grocery store can be treated differently than a bag of chips from a hotdog stand. Some states have also added special taxes on snack foods. In general, purchases they want to encourage (staples from the grocery store) are tax free or low tax, items they don't want to encourage (snacks) are fully taxed. You can also be sure that they will treat luxury items as fully taxed. A new frontier of taxation are ones designed to tax people who don't live there. They have added taxes on restaurants and hotels. Since they are paid by tourists, the people most likely to pay them don't have a voice in setting the rate. States are now wanting to tax services as a way to make up shortfalls in taxing. Don't expect consistency from state to state, or year to year. Oh by the way that penny tax was for something that cost 17 cents or less, unless that item had a lower tax rate. The receipt should clearly identify the taxable items, and their tax level.",
+    "I owned a restaurant for over 5 years. Sales tax was only collected on POST discount price, though every state that collects sales tax may have different laws regarding collection. For example, when a customer used a gift certificate, that did NOT reduce the amount that tax was collected on. Why? Because the restaurant at some point or another collected the full amount of the bill."
+  ],
+  "answer": "When purchasing items in a retail store, you will pay a percentage of your gross sales to state and local sales tax. As a single-owner LLC, your profits (after sales taxes) should pass through to your individual tax return. Sales tax is a business expense, just like costs of goods sold or interest on a loan. The tax is charged on the total amount of money taken in, so every dollar you spend on an item at the store will be subject to the gross receipts tax. This means there is a direct link between the price you pay for an individual item and the tax they pay on that transaction. Sales tax is often added at the time of sale, and businesses may roll all of these into the posted price. However, they don't always do this to make the price seem lower and encourage purchases.",
+  "timing": {
+    "asr_ms": 10646.793327992782,
+    "embedding_ms": 5014.6407209686,
+    "retrieval_ms": 24.69118102453649,
+    "generation_ms": 3396.881746011786,
+    "end_to_end_ms": 19083.63005402498
+  },
+  "query_id": "q_7e9a0f2716c017d2",
+  "audio_file": "/home/s2564099/edin-mls-26-autumn/rag/data/rag_corpus/audio/practice/q_7e9a0f2716c017d2.wav"
+}

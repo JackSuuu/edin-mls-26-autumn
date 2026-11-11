@@ -95,8 +95,9 @@ novelty.
 The baseline is the supplied skeleton with empty blanks and PyTorch fallbacks
 (\texttt{./run.sh --cuda none}). We filled all four kernel groups, verified each
 with \texttt{make test1} through \texttt{make test4}, and checked the full model
-with \texttt{./run.sh} (all CUDA groups). The RAG extension is still outstanding;
-this report documents the ASR kernel work first.
+with \texttt{./run.sh} (all CUDA groups). We also ran the supplied RAG pipeline
+on the 350-query practice split to establish a retrieval baseline. Comparisons
+with alternative RAG methods remain to be completed.
 
 \section{System and Technical Approach}
 \label{sec:approach}
@@ -171,6 +172,36 @@ except for the \texttt{--use\_fast\_math} experiment.
 
 \section{Results and Analysis}
 \label{sec:results}
+
+\subsection{RAG baseline}
+We ran the supplied RAG pipeline on an ICF RTX A6000 with two allocated CPUs
+and 24~GB host memory (job 3713067, 11 November 2026; code revision
+\texttt{c0b7a7f}). We used all custom CUDA ASR groups, enc\_a query encoding
+on CPU, and exact cosine retrieval over 24,000 normalised 384-dimensional
+enc\_a document vectors. For answer generation, we concatenated the top five
+records and called the ELM EuroLLM-22B-Instruct-2512 model at temperature 0.1.
+
+We evaluated retrieval on all 350 practice queries using the public qrels.
+For each query we retrieved 100 records, computed the metrics at their stated
+cutoffs, and averaged scores across queries. Recall@5/10/20/100 was
+0.421337/0.479594/0.578524/0.769856; MRR@10 was 0.488746 and NDCG@10 was
+0.420461. We saved the ASR transcripts for controlled comparisons of downstream
+RAG methods. We have not evaluated the dev split.
+
+We also generated answers for the first five practice queries and judged each
+once with the same EuroLLM model, using the ASR transcript as the question and
+qrels-derived reference evidence. Mean correctness, grounding and completeness
+were 1.6, 2.0 and 1.2 out of 4; the mean normalised score was 0.40. These five
+queries cover 1.43\% of the split. In the first query, the judge attributed
+conditions to the question that its saved transcript did not contain, so we
+treat these scores as diagnostic and require human checks before drawing
+conclusions about answer quality.
+
+The difference between Recall@100 and Recall@5 motivates testing whether
+reranking or context selection can move relevant candidates into the final
+five records. We have not tested that hypothesis. The batch took 45~min
+18~s, including compilation, tests and initialisation. We have not yet measured
+steady-state latency or resource costs for a controlled RAG comparison.
 
 \subsection{Task 1 correctness and end-to-end check}
 All four \texttt{make test1} cases pass with \texttt{max\_err} $\leq 2\times 10^{-7}$
@@ -306,8 +337,12 @@ make test          # or make test1 .. test4
 ./run.sh --profile
 \end{verbatim}
 
-\section{RAG placeholder}
-RAG experiments and evaluation to be added when complete.
+\section{RAG reproduction record}
+The repository includes the baseline configuration, commands, package versions,
+coverage and limitations in
+\texttt{rag/experiments/baseline-3713067.md}. Raw outputs are stored under
+\texttt{rag/results/icf-3713067/}; the accompanying JSON manifest records
+SHA-256 checksums. The experiment record includes the evaluation commands.
 
 % Keep this line unchanged.
 \newpage
@@ -323,7 +358,7 @@ RAG experiments and evaluation to be added when complete.
 % for the material you produce.
 \section*{AI declaration}
 I used AI coding assistants (including Cursor/ELM) to help run GPU experiments,
-derive bandwidth accounting, and draft LaTeX text for this report. I reviewed
+derive bandwidth accounting, organise the RAG baseline records, and draft LaTeX text for this report. I reviewed
 all kernel code, re-ran \texttt{make test} and \texttt{./run.sh} on my machine,
 and edited the final wording. I remain responsible for the submitted work.
 

@@ -1,0 +1,226 @@
+﻿{
+    "schema_version":  1,
+    "experiment_id":  "baseline-icf-3713067",
+    "run_date":  "2026-11-11",
+    "recorded_at_utc":  "2026-11-11T19:42:23.5249303Z",
+    "code_revision":  "c0b7a7fdc1dd7751dea7dfe0d8f0f88d0469a617",
+    "source_hash_scope":  "Local core source at record creation; remote saved core diff is empty",
+    "job":  {
+                "id":  3713067,
+                "partition":  "Teaching",
+                "node":  "landonia11",
+                "gpu":  "NVIDIA RTX A6000",
+                "cpus":  2,
+                "host_memory_gb":  24,
+                "state":  "COMPLETED",
+                "exit_code":  "0:0",
+                "elapsed":  "00:45:18"
+            },
+    "retrieval":  {
+                      "split":  "practice",
+                      "queries":  350,
+                      "k_max":  100,
+                      "aggregation":  "macro mean over queries",
+                      "recall_at_5":  0.421337,
+                      "recall_at_10":  0.479594,
+                      "recall_at_20":  0.578524,
+                      "recall_at_100":  0.769856,
+                      "mrr_at_10":  0.488746,
+                      "ndcg_at_10":  0.420461
+                  },
+    "answer_judge":  {
+                         "script_version":  "v0.3-public-answer-judge",
+                         "rubric_version":  "rag-answer-rubric-v0.1",
+                         "judge_model":  "utter-project/EuroLLM-22B-Instruct-2512",
+                         "question_mode":  "transcript",
+                         "split":  "practice",
+                         "queries":  5,
+                         "expected_queries":  350,
+                         "coverage":  0.014285714285714285,
+                         "is_subset":  true,
+                         "repeats":  1,
+                         "mean_correctness":  1.6,
+                         "mean_grounding":  2.0,
+                         "mean_completeness":  1.2,
+                         "mean_normalised_answer_score":  0.4
+                     },
+    "asset_archive":  {
+                          "path":  "rag-assets.zip",
+                          "bytes":  196521100,
+                          "sha256":  "3b830368271e935b60791dc0955af2b0d50692d575150189475c6306e6c9e3b8"
+                      },
+    "core_source_hashes":  [
+                               {
+                                   "path":  "hw1-asr/csrc/asr_kernels.h",
+                                   "sha256":  "76347eaf8a295de464ffa74b7937420a45bffe4a4fcfe8172e0068230f275f74"
+                               },
+                               {
+                                   "path":  "hw1-asr/csrc/common.cuh",
+                                   "sha256":  "d3ff661e20810305690ab370082572fc43e119ae1ab789411efa51812bd0604c"
+                               },
+                               {
+                                   "path":  "hw1-asr/csrc/provided.cu",
+                                   "sha256":  "119bda8ebf3b536749b25a15abbbc5932dbca86ce5aa0f8e0e4a589763b96ed9"
+                               },
+                               {
+                                   "path":  "hw1-asr/csrc/task1_rope.cu",
+                                   "sha256":  "bf4ef8b42fcddecd6b12abce4249d90a1f1a787cebdbee892fd2160d2b2bd055"
+                               },
+                               {
+                                   "path":  "hw1-asr/csrc/task2_reduce.cu",
+                                   "sha256":  "67fb667d5a3ac162f62aa3cd4761e2687211568bcf9670088347f73ac2ce50f8"
+                               },
+                               {
+                                   "path":  "hw1-asr/csrc/task2_reduce.cuh",
+                                   "sha256":  "e079ca3cfb29173ace80403114579ae232da05fd5634ba211bc83f808fc05760"
+                               },
+                               {
+                                   "path":  "hw1-asr/csrc/task3_gemm.cu",
+                                   "sha256":  "242d9044d96c90cbf77078d223713f9d0709688992e3b4a601b5fd01ebd2a1b2"
+                               },
+                               {
+                                   "path":  "hw1-asr/csrc/task4_attention.cu",
+                                   "sha256":  "0838b13d03073b7ddfea3d50d184ee8c40fe3f5ca966b0284499b8f1c4a3dbcb"
+                               },
+                               {
+                                   "path":  "rag/src/__init__.py",
+                                   "sha256":  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                               },
+                               {
+                                   "path":  "rag/src/asr_adapter.py",
+                                   "sha256":  "a5f55f6a8054fa8cfe8d92faf0f1ad4e670f43947d433741f073f5c0ed4fefa0"
+                               },
+                               {
+                                   "path":  "rag/src/asr_worker.py",
+                                   "sha256":  "8f6ec7dc6af2db7a7076cc14f761f3786dbcfb51e48845d4d0702f648e20dea0"
+                               },
+                               {
+                                   "path":  "rag/src/context_builder.py",
+                                   "sha256":  "49ef2b3620bd4b1e33d150cec3de1d2c9e7679cec9198bbfaf24df954679f4ce"
+                               },
+                               {
+                                   "path":  "rag/src/data.py",
+                                   "sha256":  "275956cc27b214ef803e94db39248a3ba59bf7fb8c395e3dfc99b66f087ad66b"
+                               },
+                               {
+                                   "path":  "rag/src/encoder.py",
+                                   "sha256":  "4b04b56bced072104c1a803bcd29539991f60045e215f7e4632a3ec41d8521d3"
+                               },
+                               {
+                                   "path":  "rag/src/evaluation/__init__.py",
+                                   "sha256":  "879adcfef25c7a3ffc1d567af1836130d96d91df34a5fa6dd61ad1d985e5982e"
+                               },
+                               {
+                                   "path":  "rag/src/evaluation/answer_judge.py",
+                                   "sha256":  "5e6093dd3932729a1e98e75b115833cc5281687b180bc3e4483bad86274b0c74"
+                               },
+                               {
+                                   "path":  "rag/src/generator.py",
+                                   "sha256":  "dfdf243ff197be52c032c96cf201eea29cf8071525f9815515b99d94ffc9bd5c"
+                               },
+                               {
+                                   "path":  "rag/src/metrics.py",
+                                   "sha256":  "030e898298b06b9ae31e5fdc36a523f9b0112bdcff980818e81f1bf9a520520d"
+                               },
+                               {
+                                   "path":  "rag/src/rag.py",
+                                   "sha256":  "39917c44cfc6036225c7fee4c94c6dcd61536337932a5fe2a270236cf5a2ce0b"
+                               },
+                               {
+                                   "path":  "rag/src/retriever.py",
+                                   "sha256":  "bdbe81d693fb6d2132d257eedf20668f876286d230dffa728d529e5abe1cc1b9"
+                               }
+                           ],
+    "result_files":  [
+                         {
+                             "path":  "rag/results/icf-3713067/asr-dependency-check.txt",
+                             "bytes":  30,
+                             "sha256":  "9261363b733079a641c2e4cc9bc46ffa1d8336945a87f807b6cf68847dbc9b09"
+                         },
+                         {
+                             "path":  "rag/results/icf-3713067/asr-model-revision.txt",
+                             "bytes":  40,
+                             "sha256":  "d33ceccbd5e4fe0ee2ae2e181697c8d4c752d83864fb46fa3c7ee42c6687e0e1"
+                         },
+                         {
+                             "path":  "rag/results/icf-3713067/asr-packages.txt",
+                             "bytes":  1245,
+                             "sha256":  "6ecb56adcdff0bd651adf5765204291675479a302a4aa5e154f29db2c155fac1"
+                         },
+                         {
+                             "path":  "rag/results/icf-3713067/core-source-diff.patch",
+                             "bytes":  0,
+                             "sha256":  "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                         },
+                         {
+                             "path":  "rag/results/icf-3713067/cuda-query.json",
+                             "bytes":  6813,
+                             "sha256":  "fce9bf70212a9c557ef2fd85a63a0cf898c37c9d07dce5c69cbddadf916f6738"
+                         },
+                         {
+                             "path":  "rag/results/icf-3713067/cuda-tests.log",
+                             "bytes":  7001,
+                             "sha256":  "048e5fa9af877a7cc0d9d7825f4d6e35d3b20b52b9434aa205d510fc76ec6237"
+                         },
+                         {
+                             "path":  "rag/results/icf-3713067/icf-baseline-3713067.log",
+                             "bytes":  251713,
+                             "sha256":  "989448fc31e038f2707c2d0d91c073058649c4f97106aa28ea7a7e4d1cee3b20"
+                         },
+                         {
+                             "path":  "rag/results/icf-3713067/practice_transcripts.jsonl",
+                             "bytes":  44028,
+                             "sha256":  "ad251c2fe5178b8da2bf920d24efe97cd93347ab8bbb17dc5b0e3778f75f42cb"
+                         },
+                         {
+                             "path":  "rag/results/icf-3713067/rag-dependency-check.txt",
+                             "bytes":  30,
+                             "sha256":  "9261363b733079a641c2e4cc9bc46ffa1d8336945a87f807b6cf68847dbc9b09"
+                         },
+                         {
+                             "path":  "rag/results/icf-3713067/rag-packages.txt",
+                             "bytes":  898,
+                             "sha256":  "64db42e10eb7bf40da8d6678794a83f02dbb1b53be0884d4d685598ba269d640"
+                         },
+                         {
+                             "path":  "rag/results/icf-3713067/reference-query.json",
+                             "bytes":  6901,
+                             "sha256":  "ca59d8f09f42bf1610aa43d6f5d61bafe1c5f52a89c8b3d7ec968bbf6335a4a7"
+                         },
+                         {
+                             "path":  "rag/results/icf-3713067/retrieval-practice.log",
+                             "bytes":  71453,
+                             "sha256":  "f215474e6de68cde4b7d37cfc9a81e04155e45cdc2462ddf0d7d3db6a2ecdf86"
+                         },
+                         {
+                             "path":  "rag/results/icf-3713067/sample_answers.jsonl",
+                             "bytes":  8530,
+                             "sha256":  "b3173c455d70829b91b2b9545aac826de5a9c99e0c1aec5657a83b1f2cd81422"
+                         },
+                         {
+                             "path":  "rag/results/icf-3713067/sample_judge/answer_judge_per_query.jsonl",
+                             "bytes":  3732,
+                             "sha256":  "af432aa58dff34434e6974ca2f29d0d02f6b488910cd297bb578989dc418d762"
+                         },
+                         {
+                             "path":  "rag/results/icf-3713067/sample_judge/answer_judge_summary.json",
+                             "bytes":  447,
+                             "sha256":  "85653b6b5a6f2075b0578047069c5fa87544e07e0e6f715c2709f9062896a8e1"
+                         },
+                         {
+                             "path":  "rag/results/icf-3713067/sample_judge/judge_cache.jsonl",
+                             "bytes":  3642,
+                             "sha256":  "3ed66f2814eaafced1903534c181a59e93a357302c92b9ced19fb42665927d4f"
+                         },
+                         {
+                             "path":  "rag/results/icf-3713067/setup.log",
+                             "bytes":  351,
+                             "sha256":  "ae6c87173562911ef3128f68c43eb0d8f560e74dcd03ba8c12006d1b54426aac"
+                         },
+                         {
+                             "path":  "rag/results/icf-3713067/slurm-accounting.txt",
+                             "bytes":  599,
+                             "sha256":  "55743015a74d1fe5e6120a3ec211eccfa934d981ab9346bcb2d346562b92bacf"
+                         }
+                     ]
+}

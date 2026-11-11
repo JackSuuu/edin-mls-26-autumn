@@ -1,0 +1,6 @@
+JobID|JobName|State|ExitCode|Elapsed|MaxRSS|AllocTRES
+3713067|mls-rag-baseline|COMPLETED|0:0|00:45:18||billing=2,cpu=2,energy=340,gres/gpu:nvidia_rtx_a6000=1,gres/gpu=1,mem=24G,node=1
+3713067.batch|batch|COMPLETED|0:0|00:45:18|7340748K|cpu=2,gres/gpu:nvidia_rtx_a6000=1,gres/gpu=1,mem=24G,node=1
+3713067.0|ps|COMPLETED|0:0|00:00:00|1608K|cpu=1,gres/gpu:nvidia_rtx_a6000=1,gres/gpu=1,mem=24G,node=1
+3713067.1|df|COMPLETED|0:0|00:00:00|1M|cpu=1,gres/gpu:nvidia_rtx_a6000=1,gres/gpu=1,mem=24G,node=1
+3713067.2|ps|COMPLETED|0:0|00:00:01|1636K|cpu=1,gres/gpu:nvidia_rtx_a6000=1,gres/gpu=1,mem=24G,node=1

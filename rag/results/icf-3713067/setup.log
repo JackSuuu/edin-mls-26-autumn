@@ -1,0 +1,6 @@
+[PASS] corpus.jsonl: 24000 records
+[PASS] student audio manifest: 475 audio items
+[PASS] corpus embeddings: shape=(24000, 384)
+[PASS] enc_a model directory: model payload present
+[PASS] ELM configuration: API key configured
+[PASS] ASR source path: source found at /home/s2564099/edin-mls-26-autumn/hw1-asr; inference checked by running an audio query
