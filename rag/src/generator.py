@@ -4,6 +4,11 @@ import os
 import time
 from dotenv import load_dotenv
 
+SYSTEM_PROMPT = (
+    "Use the supplied evidence to answer the user's question. "
+    "Do not invent facts that are unsupported by the evidence."
+)
+
 
 class ELMGenerator:
     def __init__(self):
@@ -39,10 +44,7 @@ class ELMGenerator:
             messages=[
                 {
                     "role": "system",
-                    "content": (
-                        "Use the supplied evidence to answer the user's question. "
-                        "Do not invent facts that are unsupported by the evidence."
-                    ),
+                    "content": SYSTEM_PROMPT,
                 },
                 {"role": "user", "content": prompt},
             ],
@@ -52,4 +54,7 @@ class ELMGenerator:
         return {
             "answer": response.choices[0].message.content.strip(),
             "latency_ms": elapsed_ms,
+            "usage": response.usage.model_dump() if response.usage is not None else None,
+            "response_model": response.model,
+            "finish_reason": response.choices[0].finish_reason,
         }

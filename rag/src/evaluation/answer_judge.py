@@ -144,7 +144,7 @@ def append_cache(path: Path, row):
 
 
 class Judge:
-    def __init__(self, model: str, retries: int = 3):
+    def __init__(self, model: str, retries: int = 3, *, json_mode: bool = False, raw_log_path: Path | None = None):
         try:
             from dotenv import load_dotenv
             from openai import OpenAI
@@ -171,6 +171,8 @@ class Judge:
         )
         self.model = model
         self.retries = retries
+        self.json_mode = json_mode
+        self.raw_log_path = raw_log_path
 
     @staticmethod
     def parse(raw):
@@ -219,7 +221,14 @@ class Judge:
                         {"role": "user", "content": prompt},
                     ],
                     temperature=0.0,
+                    **({"response_format": {"type": "json_object"}} if self.json_mode else {}),
                 )
+                if self.raw_log_path is not None:
+                    append_cache(self.raw_log_path, {
+                        "question": question, "model": self.model, "json_mode": self.json_mode,
+                        "candidate_sha256": hashlib.sha256(answer.encode()).hexdigest(),
+                        "attempt": attempt, "raw": r.choices[0].message.content,
+                    })
                 return self.parse(r.choices[0].message.content)
             except Exception as e:
                 last = e

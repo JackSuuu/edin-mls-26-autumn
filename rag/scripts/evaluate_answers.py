@@ -41,6 +41,7 @@ def main():
     ap.add_argument("--repeats", type=int, default=1)
     ap.add_argument("--api-retries", type=int, default=3)
     ap.add_argument("--allow-subset", action="store_true")
+    ap.add_argument("--json-mode", action="store_true", help="Request JSON-object output; separate cache namespace")
     ap.add_argument("--dry-run", action="store_true", help="Validate inputs without API calls or output writes")
     args = ap.parse_args()
     if args.repeats < 1 or args.api_retries < 1:
@@ -54,7 +55,8 @@ def main():
     from dotenv import load_dotenv
     load_dotenv(ROOT / ".env")
     model = args.model or os.getenv("ELM_JUDGE_MODEL") or os.getenv("ELM_MODEL", "utter-project/EuroLLM-22B-Instruct-2512")
-    judge = Judge(model, retries=args.api_retries)
+    judge = Judge(model, retries=args.api_retries, json_mode=args.json_mode,
+                  raw_log_path=args.out_dir / "judge_raw.jsonl")
     cache_path = args.out_dir / "judge_cache.jsonl"
     cache = load_cache(cache_path)
     results = []
@@ -63,7 +65,8 @@ def main():
         docs = gold[qid]["gold_documents"]
         repeated = []
         for rep in range(args.repeats):
-            key = cache_key(model + "@" + str(judge.client.base_url), row["transcript"], row["answer"], docs, rep)
+            protocol_tag = "#response_format=json_object" if args.json_mode else ""
+            key = cache_key(model + "@" + str(judge.client.base_url) + protocol_tag, row["transcript"], row["answer"], docs, rep)
             if key in cache:
                 score = Judge.parse(__import__("json").dumps(cache[key]["result"]))
             else:
@@ -84,6 +87,7 @@ def main():
                "judge_model": model, "question_mode": "transcript", "split": args.split,
                "queries": len(results), "expected_queries": len(gold), "coverage": len(seen)/len(gold),
                "is_subset": seen != set(gold), "repeats": args.repeats}
+    summary["judge_response_format"] = "json_object" if args.json_mode else "default_text"
     for dim in ("correctness", "grounding", "completeness", "normalised_answer_score"):
         summary["mean_" + dim] = mean([r[dim] for r in results])
     write_json_atomic(args.out_dir / "answer_judge_summary.json", summary)
