@@ -33,6 +33,7 @@ python rag/extensions/run_selection_experiment.py prepare \
   --sample rag/experiments/selection-pilot-sample.jsonl \
   --rankings rag/results/selection-rankings/rankings.jsonl \
   --output rag/results/selection-run/plan
+# On a GPU node (no ASR in this step): add --rerank-device cuda for faster 100-pair scoring
 python rag/extensions/run_selection_experiment.py generate \
   --plan rag/results/selection-run/plan \
   --output rag/results/selection-run/answers --max-new-queries 3

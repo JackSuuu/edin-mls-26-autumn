@@ -96,8 +96,10 @@ The baseline is the supplied skeleton with empty blanks and PyTorch fallbacks
 (\texttt{./run.sh --cuda none}). We filled all four kernel groups, verified each
 with \texttt{make test1} through \texttt{make test4}, and checked the full model
 with \texttt{./run.sh} (all CUDA groups). We also ran the supplied RAG pipeline
-on the 350-query practice split to establish a retrieval baseline. Comparisons
-with alternative RAG methods remain to be completed.
+on the 350-query practice split to establish a retrieval baseline. A controlled
+\textbf{evidence-selection} pilot (30 queries, five context arms) is complete;
+full-scale rerank timing and report integration continue on practice before any
+dev evaluation.
 
 \section{System and Technical Approach}
 \label{sec:approach}
@@ -143,7 +145,8 @@ out-of-bounds loads use zero so every thread hits both \texttt{\_\_syncthreads()
 Each block covers \texttt{ATTN\_WARPS=4} queries of one head; each warp streams
 keys/values in tiles of 32 through dynamic shared memory (\texttt{k\_tile},
 \texttt{v\_tile}, cached scaled queries). Running statistics $(m,\ell,\mathrm{acc})$
-implement FlashAttention-style online softmax with \texttt{corr$=\exp(m-m_{\mathrm{new}})$}
+implement FlashAttention-style online softmax with correction
+$\mathrm{corr}=\exp(m-m_{\mathrm{new}})$
 when a tile raises the max. Causal masking sets scores to $-\infty$ past
 \texttt{last\_key}; GQA maps \texttt{kv\_h = h / (num\_heads/num\_kv\_heads)}.
 Blank~4.5 must broadcast each lane's probability with \texttt{\_\_shfl\_sync} so
@@ -183,8 +186,8 @@ records and called the ELM EuroLLM-22B-Instruct-2512 model at temperature 0.1.
 
 We evaluated retrieval on all 350 practice queries using the public qrels.
 For each query we retrieved 100 records, computed the metrics at their stated
-cutoffs, and averaged scores across queries. Recall@5/10/20/100 was
-0.421337/0.479594/0.578524/0.769856; MRR@10 was 0.488746 and NDCG@10 was
+cutoffs, and averaged scores across queries. Recall at 5/10/20/100 was
+0.421337/0.479594/0.578524/0.769856; MRR at 10 was 0.488746 and NDCG at 10 was
 0.420461. We saved the ASR transcripts for controlled comparisons of downstream
 RAG methods. We have not evaluated the dev split.
 
@@ -197,11 +200,16 @@ conditions to the question that its saved transcript did not contain, so we
 treat these scores as diagnostic and require human checks before drawing
 conclusions about answer quality.
 
-The difference between Recall@100 and Recall@5 motivates testing whether
-reranking or context selection can move relevant candidates into the final
-five records. We have not tested that hypothesis. The batch took 45~min
-18~s, including compilation, tests and initialisation. We have not yet measured
-steady-state latency or resource costs for a controlled RAG comparison.
+The difference between Recall at 100 and Recall at 5 motivated an evidence-selection
+pilot (fixed transcripts and top-100 candidates; see
+\texttt{rag/experiments/selection-pilot-results.md}). Deeper contexts raised
+selected-ID recall (top-5 $\sim 0.29$ to top-20 $\sim 0.51$) at about
+$3.7\times$ input tokens; cross-encoder reranking on CPU did not beat dense top-5
+on this 30-query sample. Bootstrap intervals crossed zero, so we treat pilot
+scores as exploratory. Baseline job 3713067 took 45~min 18~s including ASR
+compilation and tests; rerank cost was measured separately on 2 CPUs ($\sim 26$
+s/query), not on
+the same node as generation.
 
 \subsection{Task 1 correctness and end-to-end check}
 All four \texttt{make test1} cases pass with \texttt{max\_err} $\leq 2\times 10^{-7}$
@@ -316,8 +324,10 @@ RoPE is memory-bound; GEMM sets end-to-end latency; attention is the next larges
 cost but still streaming-friendly compared with materialising scores. The main
 implementation pitfall in Task~4 was treating each lane's $p$ as local to its key
 when updating $\mathrm{acc}$---cross-lane shuffle is required. Fast math remains
-unsafe for RoPE at large angles. Next: RAG quality/latency experiments and optional
-comparison of CUDA ASR vs.\ PyTorch inside the RAG pipeline.
+unsafe for RoPE at large angles. RAG work continues with full-practice reranking
+(same node, optional GPU via \texttt{--rerank-device cuda}), candidate-pool depth
+checks, and six-page integration of pilot findings; dev is reserved for final
+method confirmation.
 
 % References are excluded from the main-body page limit.
 \bibliography{references}
@@ -338,11 +348,11 @@ make test          # or make test1 .. test4
 \end{verbatim}
 
 \section{RAG reproduction record}
-The repository includes the baseline configuration, commands, package versions,
-coverage and limitations in
-\texttt{rag/experiments/baseline-3713067.md}. Raw outputs are stored under
-\texttt{rag/results/icf-3713067/}; the accompanying JSON manifest records
-SHA-256 checksums. The experiment record includes the evaluation commands.
+Baseline: \texttt{rag/experiments/baseline-3713067.md} and
+\texttt{rag/results/icf-3713067/}. Evidence-selection pilot:
+\texttt{rag/experiments/selection-pilot-results.md} and metrics JSON.
+Teammate runbook: \texttt{rag/experiments/TEAMMATE\_RUNBOOK.md}. ASR logs:
+\texttt{hw1-asr/results/cuda-submit-logs/} when present.
 
 % Keep this line unchanged.
 \newpage

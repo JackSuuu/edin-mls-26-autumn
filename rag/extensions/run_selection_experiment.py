@@ -67,6 +67,13 @@ def prepare(args):
     tokenizer = AutoTokenizer.from_pretrained(str(args.assets / "tokenizer"), local_files_only=True)
     torch.set_num_threads(args.threads)
 
+    def rerank_device():
+        if args.rerank_device == "cpu":
+            return torch.device("cpu")
+        if not torch.cuda.is_available():
+            raise ValueError("--rerank-device cuda requested but CUDA is unavailable")
+        return torch.device("cuda")
+
     def count_tokens(prompt):
         return chat_input_tokens(tokenizer, SYSTEM_PROMPT, prompt)
 
@@ -81,6 +88,7 @@ def prepare(args):
                 inputs = rank_tokenizer([question] * len(batch), [records[rid] for rid in batch],
                                         padding=True, truncation="only_second", max_length=512,
                                         return_tensors="pt")
+                inputs = {k: v.to(device) for k, v in inputs.items()}
                 scores.extend(model(**inputs).logits.reshape(-1).tolist())
         if len(scores) != len(ids) or not all(math.isfinite(x) for x in scores):
             raise ValueError("Invalid reranker scores")
@@ -104,7 +112,8 @@ def prepare(args):
             if old["input_sha256"].get(str(p)) != digest(p):
                 raise ValueError("Rerank cache inputs differ")
         if (old["reranker"] != asset_manifest["reranker"] or old["reranker_max_length"] != 512
-                or old["reranker_batch_size"] != args.batch_size or old["threads"] != args.threads):
+                or old["reranker_batch_size"] != args.batch_size or old["threads"] != args.threads
+                or old.get("reranker_device", "cpu") != args.rerank_device):
             raise ValueError("Rerank cache model/settings differ")
         cached_reranks = indexed(load_jsonl(args.rerank_cache / "rerankings.jsonl"), "query_id")
         if set(cached_reranks) != {r["query_id"] for r in sample}:
@@ -115,9 +124,10 @@ def prepare(args):
                             "rerankings_sha256": marker["rerankings_sha256"],
                             "note": "Reuse only valid reranker scores/times; rebuild all contexts and answers"}
     else:
+        device = rerank_device()
         rank_tokenizer = AutoTokenizer.from_pretrained(str(args.assets / "reranker"), local_files_only=True)
         model = AutoModelForSequenceClassification.from_pretrained(
-            str(args.assets / "reranker"), local_files_only=True).to("cpu").eval()
+            str(args.assets / "reranker"), local_files_only=True).to(device).eval()
         dtype = str(next(model.parameters()).dtype)
         # Warmup is explicit and excluded from per-query score time.
         warmup_start = time.perf_counter()
@@ -134,13 +144,14 @@ def prepare(args):
               "tokenizer_note": "Official local tokenizer estimate; ELM server usage is separately recorded",
               "reranker": asset_manifest["reranker"], "tokenizer": asset_manifest["tokenizer"],
               "reranker_max_length": 512, "reranker_truncation": "only_second (document)",
-              "reranker_dtype": dtype, "reused_reranking": cache_provenance,
+              "reranker_dtype": dtype, "reranker_device": args.rerank_device,
+              "reused_reranking": cache_provenance,
               "reranker_batch_size": args.batch_size, "threads": args.threads,
               "warmup_ms": warmup_ms, "model_init_in_timings": False,
               "generation_temperature": 0.1, "request_order_seed": args.seed,
               "expected_generation_model": "utter-project/EuroLLM-22B-Instruct-2512",
               "max_local_input_tokens": args.max_input_tokens,
-              "timing_note": "Exploratory single-pass CPU/ELM latencies; no throughput or stable speedup claim",
+              "timing_note": "Single-pass rerank/ELM latencies on recorded device; not steady-state cluster throughput",
               "source_sha256": {str(p.relative_to(ROOT)): digest(p) for p in source_paths},
               "input_sha256": {str(p): digest(p) for p in
                                (args.sample, args.rankings, ROOT / "rag/data/rag_corpus/corpus.jsonl")}}
@@ -286,6 +297,8 @@ def main():
     prep.add_argument("--max-input-tokens", type=int, default=28672)
     prep.add_argument("--batch-size", type=int, default=16)
     prep.add_argument("--threads", type=int, default=2)
+    prep.add_argument("--rerank-device", choices=("cpu", "cuda"), default="cpu",
+                      help="Device for cross-encoder reranking (use cuda on a GPU node)")
     prep.add_argument("--seed", default="2026-11-12-selection-pilot-v1")
     gen = sub.add_parser("generate")
     gen.add_argument("--plan", type=Path, required=True)
