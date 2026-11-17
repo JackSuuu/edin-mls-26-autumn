@@ -365,8 +365,9 @@ limits to a retrieved statement about \emph{company tax losses}.
 This subject/scope substitution persists despite both gold documents being
 present. Six cases have judge-text conflict flags, not corrected scores.
 Retrieved and gold evidence differ; missing gold IDs need not imply missing
-answer evidence. Full-text prompt checks and a second AI source check of three
-cases support provenance, not causal attribution or independent human review
+answer evidence. Full-text prompt checks support provenance; the authors
+subsequently confirmed three representative case analyses, not mechanism
+prevalence or causality
 (Appendix~\ref{app:error-analysis}).
 
 \begin{figure}[t]
@@ -765,38 +766,12 @@ to obtain an interval excluding zero.
 % or to complete other tasks. In all cases, you remain entirely responsible
 % for the material you produce.
 \section*{AI declaration}
-OpenAI coding assistance was used to help run and organise
-GPU/RAG experiments, derive bandwidth and cost summaries, analyse saved
-dev-validation results, and draft/edit LaTeX text for this report. During this
-revision, an OpenAI coding agent reran the default ASR checks, recomputed saved
-RAG summaries without new dev generation or judging, and cross-checked report
-measurements against repository artifacts. The agent also implemented and ran
-the exploratory practice-only L6/L12 retrieval comparison and audited its saved
-metrics, without new answer generation or judging. In the Qwen integration
-revision it audited saved retrieval and answer/judge artifacts and edited the
-report; it did not rerun models or API calls. It also generated the quality--cost
-plot directly from saved means and checked the relative-cost arithmetic.
-Following explicit authorization, it then set up and ran the frozen dev
-verification, including new answers and judging, and audited the resulting
-artifacts. The plot and report now distinguish practice/dev and retain the dev
-interval including zero.
-It also drew the architecture diagram from the implementation, distinguishing
-cached inputs, GPU/local/remote components and offline evaluation.
-That diagram was subsequently replaced with the group-supplied SVG; the agent
-converted it to a vector PDF for LaTeX without editing the supplied SVG.
-For the error-analysis revision, it sampled saved practice judge-zero cases,
-checked outgoing prompts against full corpus text, traced qualitative examples
-and judge-text conflicts to saved records, and drafted the diagnostic discussion.
-This was unblinded AI-assisted review, not independent human adjudication;
-it made no new model, generation or judge calls and did not change saved scores.
-It subsequently checked zero-score/raw-response integrity, documented the
-untested zero-template risk, rechecked three case evidence chains, plotted
-score-state transitions and made a larger-label architecture reflow.
-This second AI source check is not independent human adjudication.
-This describes automated checks, not
-an assertion that the authors independently verified every number. Final author
-review remains outstanding. The group remains
-responsible for the submitted work.
+OpenAI coding assistance was used for CUDA/RAG implementation, experiment
+execution, offline audits, figures, and report drafting and revision.
+EuroLLM via ELM generated answers and automated judgements as described in the
+methodology.
+The authors confirmed the representative diagnostic cases and remain responsible
+for the submitted work.
 
 % Please put the information of your group here without changing the format.
 % This page will be deleted when the report is distributed for reviewing.

@@ -1,6 +1,7 @@
 {
   "reviewer": "OpenAI coding assistant; second unblinded source check, not independent human review",
-  "author_confirmation_outstanding": true,
+  "author_confirmation_outstanding": false,
+  "author_confirmation_source": "User reports completed human confirmation of the representative cases; no exhaustive 20-case taxonomy or causal intervention is reported.",
   "scores_changed": false,
   "cases": [
     {

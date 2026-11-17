@@ -169,7 +169,7 @@ def main():
     indexed_cases = {c["query_id"]: c for c in cases}
     for note in recheck["cases"]:
         verify_quotes(indexed_cases[note["query_id"]], note)
-    assert recheck["author_confirmation_outstanding"] and not recheck["scores_changed"]
+    assert type(recheck["author_confirmation_outstanding"]) is bool and not recheck["scores_changed"]
     sources.extend((NOTES, RECHECK))
     tag_counts = collections.Counter(tag for n in notes["cases"] for tag in n["tags"])
     summary = {
@@ -255,6 +255,9 @@ def main():
             origin = q["source"] + ("/" + q["record_id"] if "record_id" in q else "")
             report.extend([f"> [{origin}] {q['quote']}", ""])
     report.extend(["## Second source check (not human adjudication)", "", recheck["reviewer"], ""])
+    if not recheck["author_confirmation_outstanding"]:
+        report.extend(["The user reports author confirmation of these three representative cases; "
+                       "this is not a complete 20-case mechanism taxonomy or causal intervention.", ""])
     for note in recheck["cases"]:
         report.extend([f"### `{note['query_id']}`", "", note["finding"], ""])
         for quote in note["quotes"]:

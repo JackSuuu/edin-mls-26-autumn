@@ -357,6 +357,8 @@ gold 位于第二篇，明确 dealer 只关心即时无风险收款而不关心�
 
 OpenAI coding assistant; second unblinded source check, not independent human review
 
+The user reports author confirmation of these three representative cases; this is not a complete 20-case mechanism taxonomy or causal intervention.
+
 ### `q_371c6ca10bf1bf5e`
 
 The retrieved company-tax text assigns carry-forward/offset to a tax loss. The answer assigns it to pension contribution limits. This directly supports a scope/subject substitution observation without needing to adjudicate Irish tax law. It does not prove removing that document would correct the answer.
