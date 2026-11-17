@@ -39,7 +39,8 @@ class ArchitectureSvgTests(unittest.TestCase):
 
     def test_report_uses_replacement_not_superseded_diagram(self):
         tex = (ROOT / "report/latex_template/report.tex").read_text()
-        self.assertIn(r"\includegraphics[width=\linewidth]{figures/ASR_RAG_System_Architecture_No_Title.pdf}", tex)
+        self.assertIn(r"\includegraphics[width=\linewidth]{figures/architecture-report.pdf}", tex)
+        self.assertIn("ASR_RAG_System_Architecture_No_Title.svg", tex)
         self.assertNotIn(r"\includegraphics[width=\linewidth]{figures/system-architecture.pdf}", tex)
 
 

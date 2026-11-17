@@ -50,6 +50,19 @@ class ErrorAnalysisEvidenceTests(unittest.TestCase):
         self.assertIn("unblinded AI-assisted", self.report)
         self.assertIn("practice_error_analysis.tex", self.report)
 
+    def test_zero_integrity_and_recheck_do_not_replace_scores(self):
+        s = self.summary
+        for arm, count in [("dense5", 138), ("qwen4_matched5", 121)]:
+            p = s["population"][arm]
+            self.assertEqual(set(p["dimension_zero_counts"].values()), {count})
+            self.assertEqual(p["mixed_zero_dimension_answers"], 0)
+            self.assertEqual(p["empty_answers"], 0)
+            self.assertEqual(p["finish_reasons"], {"stop": 350})
+            self.assertTrue(p["all_scores_match_cached_and_raw_judge_responses"])
+        self.assertTrue(s["judge_zero_template_risk"]["schema_literal_present"])
+        self.assertTrue(s["representative_case_recheck"]["author_confirmation_outstanding"])
+        self.assertFalse(s["representative_case_recheck"]["scores_changed"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -38,6 +38,30 @@ yet retrieved record \texttt{r\_515c5b86e5dc3220} explicitly recommends
 ``a Home Equity Line of Credit''. Missing a gold ID is therefore not proof
 that the corresponding answer evidence is absent.
 
+\textbf{Zero-score integrity and calibration.}
+All 700 saved answers are nonempty and finish with \texttt{stop}.
+Scores match both cached results and valid saved raw judge responses;
+the parser raises on malformed scores and exhausted retries raise an error,
+not a default zero. Zero scores therefore cannot be explained here by empty
+outputs or silent parse-to-zero handling.
+For dense, the zero-ID sets for correctness, grounding and completeness are
+identical (138 each); for Qwen they are likewise identical (121 each).
+There are no answers with only some dimensions zero. This synchrony warrants
+calibration review, not an assumption that all three dimensions fail equally.
+The paired zero/nonzero counts are 85/53/36/176 for
+zero--zero/zero--positive/positive--zero/positive--positive.
+Thus 53 leave zero and 36 enter it; the net reduction of 17 is not a universal
+per-query improvement or a human-verified accuracy gain.
+
+The frozen judge source, verified modulo LF/CRLF line endings, shows the user
+prompt's format example as
+\texttt{\{"correctness":0,"grounding":0,"completeness":0,\ldots\}}.
+It may invite value copying/anchoring as well as specify JSON structure.
+This is an \emph{untested prompt-design risk}: the present data do not identify
+its contribution, or separate it from strict reference-only scoring, genuine
+answer defects and other judge behaviour. No alternate prompt or rejudging is
+run, and original scores are not replaced.
+
 \textbf{Prompt integrity.} Rebuilding all 700 saved practice prompts from their
 selected IDs reproduces full top-five corpus text and saved SHA-256 hashes
 exactly; selection metadata also reports no truncation. This excludes local
@@ -52,6 +76,11 @@ are included. Other selected records explicitly discuss UK allowances
 (\texttt{r\_dc4b5d2c6048003d}). The answer presents contribution limits that
 ``can be carried forward and offset against future profits'' as an Ireland
 benefit, without preserving the scope of those statements.
+More specifically, the company-tax source says ``there will be a tax loss that
+can be carried forward and offset against future profits''; the answer instead
+says ``There are maximum contribution limits, but these can be carried forward
+and offset against future profits''. This changes the subject of the rule,
+independently of whether one adjudicates Irish tax law.
 This is a traceable scope-blending observation, not a demonstrated causal
 effect of distractors.
 
@@ -88,6 +117,19 @@ support claims; and the crisis-assets reason denies items actually present in
 gold. These are review flags, not six corrected scores or a general judge-error
 rate. Real answer defects can coexist with faulty judge explanations.
 All original scores and paired intervals are retained.
+
+\textbf{Second source check, not independent adjudication.}
+Three representative cases were checked again by the AI assistant against
+named, verbatim source spans. The pension example supports subject substitution.
+In the software example (\texttt{q\_e16177bbeb991130}), gold names MetaStock,
+Incredible Charts and VectorVest and the answer includes all three;
+Bloomberg wording comes from retrieved, non-gold text, despite the judge
+attributing it to gold. This flags explanation fidelity and calibration,
+not a fully correct answer. The crisis-assets example establishes two concurrent
+issues: the answer changes \emph{after} to \emph{during}, while the judge denies
+helicopters/connections that gold contains. A judge mistake therefore does not
+vindicate the entire answer. The three checks and exact quotations are saved
+in \texttt{error-case-recheck.json}; author confirmation is still outstanding.
 
 \textbf{Reproduction and stopping boundary.}
 \texttt{python3 rag/extensions/analyze\_practice\_errors.py} reconstructs the

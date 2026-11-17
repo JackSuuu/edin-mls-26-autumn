@@ -2,6 +2,12 @@
 
 ## This revision
 
+- Adds Figure 3 with all-query judge-zero composition and paired zero/nonzero
+  transitions, and explicitly separates score states from verified correctness.
+- Audits all 700 raw/cached judge responses, documents coincident dimension-zero
+  sets and the untested zero-filled-template risk; no judge source/scores change.
+- Adds a second AI source check of three cases and a larger-label architecture
+  reflow. The supplied SVG is unchanged and author confirmation remains pending.
 - Reframes the discussion around controlled explanations, evidence-use versus
   measurement limitations, and an explicit stopping boundary rather than further
   configuration search.
@@ -62,7 +68,7 @@ on page 7. Appendix starts on a fresh page. The agent visually inspected the
 title/architecture, fresh table, quality-cost figure and selected-answer layout;
 this is not independent author sign-off.
 
-### Latest error-analysis integration
+### Previous error-analysis integration
 
 - **35 RAG tests** passed (31 previously tracked + 4 offline diagnostic tests);
   **18 report tests** passed (including 4 diagnostic-evidence checks and 3
@@ -92,8 +98,33 @@ this is not independent author sign-off.
   `svg-summary.json` records source/converter/output hashes and versions.
   The rendered page 2 was visually inspected; body remains six pages/PASS.
 
+### Latest zero-score and readability integration
+
+- **37 tracked RAG tests and 25 report tests passed**. Repeated offline audit
+  and figure generation produce byte-identical output in this environment.
+- All 700 scores match valid raw judge responses/caches; all answers are nonempty
+  and finish with `stop`. Zero sets coincide across dimensions within each arm.
+  The frozen judge source matches modulo LF/CRLF; its all-zero example is an
+  untested design risk, not a validated explanation or justification to rescore.
+- Every second-pass quote is verified in its named source. These checks support
+  traceability, not independent human adjudication. All authors' boxes remain open.
+- Body **six pages**, total PDF **15 pages**, checker **PASS**, no `[?]`.
+  All **76 evidence paths** exist and are included in this revision.
+  Official style/review mode, four ASR selected answers, supplied SVG, raw
+  generation/judging outputs and dev interval `[-0.0007, 0.1127]` are unchanged.
+- Reader locations: readable Figure 1 page 2; quality-cost Figure 2 and
+  judge-zero Figure 3 plus explanation page 5; ASR results and Discussion page 6;
+  selected ASR answers Appendix A page 8; diagnostic Appendix H pages 12–14;
+  AI declaration/group details page 15. Rendered pages 2, 5, 6, 13 and 14 were
+  visually inspected. Architecture labels are at least about 6.9 pt at print size.
+- No new inference, generation, alternate-judge prompt run or snippet experiment.
+
 ## Required author review — still outstanding
 
+- [ ] Independently confirm the three second-pass cases in
+      `rag/experiments/error-case-recheck.json`: tax loss versus contribution
+      limits, software gold/retrieved scope, and crisis timing plus judge
+      misreading. AI source checks and exact quotations do not complete this.
 - [ ] Both authors read the final PDF, including equations and table/figure
       captions, and accept the numerical interpretations and limitations.
 - [ ] Confirm citations genuinely support the nearby statements and the

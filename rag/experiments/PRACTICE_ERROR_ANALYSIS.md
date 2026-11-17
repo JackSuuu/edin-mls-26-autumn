@@ -40,6 +40,7 @@ python3 -m unittest discover -s rag/tests -p test_practice_error_analysis.py -v
 - `REVIEW.md`：逐题诊断、适用局限及已验证原文引句。
 
 可编辑定性标注：`rag/experiments/practice-error-analysis-v1.json`。
+二次代表案例复核：`rag/experiments/error-case-recheck.json`。
 脚本重跑只重建以上三个诊断文件，不覆盖原始实验结果。
 结果目录受仓库现有 ignore 规则影响；提交时如需要应精确指定文件，
 不要顺带提交其他本地结果或盲审 key。
@@ -89,6 +90,40 @@ python3 -m unittest discover -s rag/tests -p test_practice_error_analysis.py -v
 只抽关键词可能进一步恶化范围和条件丢失。
 
 ## 三、评估限制不能混同生成错误
+
+### 零分来自哪里：完整性已核对，校准仍未解决
+
+- Dense 的138/350（39.4%）和 Qwen 的121/350（34.6%）为三维全零。
+- 700份答案都非空、`finish_reason=stop`；每一份分数都与保存的有效
+  raw judge 响应及 cache 结果相符。解析器不会把失败静默变为零分。
+- 每组中 correctness、grounding、completeness 的零分 ID 集合完全相同，
+  没有“只有部分维度为零”的答案。这是需要校准复核的现象，
+  不能直接推断三维确实总是同时完全失败。
+- 冻结 judge 源码（允许 Git LF/CRLF 换行差异）中的格式示例填了三个0。
+  它可能同时被当作格式和值的示例，存在模仿/锚定风险；
+  **尚未做对照，因此不能把零分比例归因于它**。源码、模板和原分数均未修改。
+- 配对分数状态：85题两组皆零、53题离开零、36题进入零、
+  176题两组非零。净少17个零分不代表只改善了17题，也不是准确率。
+
+`report/plot_zero_scores.py` 将上述组成及转移画成一张两面板图，
+正文 Figure 3 的分母始终为350；不把非零标成“正确”。
+没有重评、没有改变置信区间，也没有评估新的 prompt。
+
+### 三个代表案例的第二次原文复核
+
+本次仍由 AI 完成，**不构成独立人工审查**。每条引句均再次定位验证：
+
+1. 养老金：公司税原文的主语是 **tax loss**，答案改为
+   **maximum contribution limits**。这是比“混用了国家规则”更直接的
+   主体替换证据，不需先判定爱尔兰税法正确性；干扰因果仍未验证。
+2. 技术分析软件：答案确实包含 gold 的 MetaStock、Incredible Charts、
+   VectorVest；Bloomberg 说法来自检索但非 gold，judge 又把它说成 gold。
+   这支持理由误述/校准待查，不支持直接补成满分。
+3. 末日资产：答案的 after→during 范围变化和 judge 否认 gold 原有内容，
+   两个问题同时存在。judge 理由错误不等于整个答案正确。
+
+`error-case-recheck.json` 和自动重建的 `REVIEW.md` 保留证据链；
+作者确认仍未完成，所有原分数不变。
 
 本地 judge 实现明确要求 **只按 gold evidence** 评判，而生成器看到的是
 实际检索的 top-5。两者证据范围不同：

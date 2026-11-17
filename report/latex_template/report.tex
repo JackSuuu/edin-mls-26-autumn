@@ -117,10 +117,10 @@ The Appendix maps measurements to committed evidence files.
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=\linewidth]{figures/ASR_RAG_System_Architecture_No_Title.pdf}
-\caption{System/data-flow overview. Selection experiments reuse saved transcripts
-and candidate lists; qrels feed only offline evaluation. Rerank/API costs
-are stage-attributed, not a measured audio-to-answer latency.}
+\includegraphics[width=\linewidth]{figures/architecture-report.pdf}
+\caption{Report-scale reflow of the group-supplied architecture. RAG arms reuse
+transcripts/candidates; dashed red arrows feed offline evaluation, not selection.
+ASR is benchmarked separately; RAG costs are stage-attributed, not audio-to-answer latency.}
 \label{fig:architecture}
 \end{figure}
 
@@ -274,27 +274,23 @@ $[-0.0440,0.0427]$. The budget-reranking difference of $-0.0447$
 $[-0.1007,0.0133]$ on dev is $-0.0069$ $[-0.0390,0.0255]$ on practice.
 Within dev arms, recall still correlates with score ($r=0.294$--$0.465$).
 Budget arms use less input than \texttt{dense20} (4096 versus 4948 tokens).
-Generation medians avoid API outlier distortion; the dev dense-budget maximum is
-186{,}750~ms. These observations do not identify whether extra evidence is
-redundant, poorly used by the generator, or obscured by judge noise.
+These observations do not separate redundant evidence, generation failure
+and judge noise (Appendix~\ref{app:initial-paired}).
 
 \textbf{Candidate-pool ablation.} On 350 practice questions, GPU cross-encoder
 pools of 20/50/100 yield Recall@5 of 0.411/0.399/0.388, below dense's 0.421;
 mean costs are 39/97/194~ms. L6 removes 83 qrel-positive document pairs from
 dense's first five while adding 47. Increasing the candidate count therefore
-does not fix this selector. Dev reranking's 262~ms is on GPU; the pilot's
-26~s/query is on two CPU cores, not a matched speed comparison.
-BM25/RRF dev Recall@5 of 0.208/0.303 is below dense's 0.379, without an
-answer-quality comparison.
+does not fix this selector; timing and lexical controls are in
+Appendix~\ref{app:initial-paired}.
 
 \textbf{L12 control.} A matched practice-only L6/L12 rerun exactly reproduces
 the old L6 scores. L12 improves Recall@5 by 0.0225 $[0.0022,0.0427]$ over L6,
 but not demonstrably over dense: $-0.0111$ $[-0.0427,0.0201]$.
-Median reranking grows from 169 to 296~ms without a detectable MRR/NDCG gain
-over L6. It removes 67 and adds 42 relevant pairs relative to dense: fewer
-losses, not more recoveries in pair counts, which are not a macro-recall
-decomposition. This points to selection quality, not just candidate quantity,
-as a possible bottleneck (Appendix~\ref{app:model-control}).
+Median reranking grows from 169 to 296~ms without a detectable MRR/NDCG gain.
+Its 67 removed/42 added relevant pairs indicate fewer losses than L6, not
+more recoveries; pair counts are not a macro-recall decomposition
+(Appendix~\ref{app:model-control}).
 
 \subsection{RAG: a stronger selector and downstream validation}
 \begin{table}[t]
@@ -353,22 +349,25 @@ it is \emph{not} measured audio-to-answer latency. The mean judge-score gain is
 (Figure~\ref{fig:quality-cost}). These percentages are not a common utility scale.
 On dev, attributed cost grows from 4.573 to 10.263~s while the answer-score
 gain remains uncertain.
-Judged all-zero answers remain
-121/350 with 4B versus 138/350 for fresh dense5. Better aggregate retrieval
-does not guarantee a better answer on each query, and no 0.6B answer comparison
-was run.
 
-\textbf{Offline failure diagnostic.} Of the 121 Qwen practice judge-zero answers,
-30 contain all positive-qrel documents in their selected top five. A uniform,
-fixed-seed sample of 20 zero-score cases reveals scope/condition problems:
-an Ireland pension answer blends UK/US/company-tax material despite containing
-both gold documents. Six sampled cases have judge-text conflicts flagged for
-author review, not corrected scores. The judge sees only gold evidence,
-whereas generation sees retrieved documents; missing gold IDs need not mean
-missing answer evidence. All 700 saved practice prompts match full top-five
-corpus text, excluding local prefix truncation in these fresh runs, not
-remote-server truncation. This unblinded AI-assisted diagnostic is exploratory,
-not causal or independent human validation (Appendix~\ref{app:error-analysis}).
+\textbf{What does zero mean?} Practice judge-zero fractions are 39.4\% for dense
+and 34.6\% for Qwen (Figure~\ref{fig:zero-scores}): 53 queries leave zero but
+36 enter it. All 700 answers are nonempty, finish with \texttt{stop}, and their
+scores match raw judge responses. Thus zeros are not empty-answer or parser
+fallback artifacts. In each arm, all three dimension-zero sets coincide.
+The judge's zero-filled JSON example is a possible, \emph{untested} anchoring
+risk, not an explanation established here. Gold-only judging is not human
+verification of complete answer failure.
+
+\textbf{Evidence use versus evaluation.} Thirty Qwen zeros include all gold IDs.
+A fixed-seed sample of 20 zeros traces an Ireland pension answer's contribution
+limits to a retrieved statement about \emph{company tax losses}.
+This subject/scope substitution persists despite both gold documents being
+present. Six cases have judge-text conflict flags, not corrected scores.
+Retrieved and gold evidence differ; missing gold IDs need not imply missing
+answer evidence. Full-text prompt checks and a second AI source check of three
+cases support provenance, not causal attribution or independent human review
+(Appendix~\ref{app:error-analysis}).
 
 \begin{figure}[t]
 \centering
@@ -378,6 +377,15 @@ horizontal values are attributed stage costs, not measured audio-to-answer
 latency. Paired score-difference intervals are annotated, not per-arm/timing
 error bars; the dev interval includes zero.}
 \label{fig:quality-cost}
+\end{figure}
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{figures/practice-zero-scores.pdf}
+\caption{Practice judge-score states, not verified correctness. Left: each bar
+contains all 350 queries; qrel coverage subdivides only zero-score answers.
+Right: paired transitions, not causal effects. Nonzero need not mean correct.}
+\label{fig:zero-scores}
 \end{figure}
 
 \textbf{ASR--RAG connection.} On 30 questions, custom/reference ASR transcripts
@@ -404,19 +412,16 @@ Appendix~\ref{app:asr-answers}.
 \section{Discussion and Conclusion}
 \label{sec:conclusion}
 
-\textbf{What the controls establish.} Passing CUDA tests does not establish
-acceleration: profiling and cuBLAS comparisons locate the dominant linear cost.
-Likewise, larger context and candidate pools do not establish better answers.
-Their negative results motivate testing evidence selection rather than merely
-adding features. Matched-text Qwen improves practice answer scores at similar
-input length, but does not isolate model size from training or architecture.
+\textbf{What the controls establish.} CUDA correctness does not imply acceleration;
+profiling locates the linear bottleneck. Larger context/candidate pools do not
+establish better answers. Matched-text Qwen supports stronger selection on
+practice, not an isolated parameter-count effect.
 
-\textbf{What the diagnostic does not establish.} Qrel-ID recall measures neither
-retention of useful conditions nor correct application of evidence.
-The pension case motivates a hypothesis of cross-context scope blending;
-it does not establish its prevalence or that snippets would fix it.
-Reference-only judging is a separate measurement limitation, not proof that
-every low score is wrong. We retain all original scores and intervals.
+\textbf{What remains unresolved.} Scope substitution motivates an interference
+hypothesis, not a demonstrated snippet remedy or population mechanism rate.
+Judge-text conflicts and synchronous zeros flag measurement limitations;
+they neither vindicate every low-scoring answer nor invalidate all comparisons.
+Original scores and paired intervals remain unchanged.
 
 \textbf{When is the cost justified?} The added attributed delay may be problematic
 for interactive voice use, whereas offline QA may tolerate it for the observed
@@ -424,13 +429,10 @@ score gain. Neither a user latency target nor a quality-to-delay utility was
 measured, so no configuration is universally preferable.
 Qwen 0.6B has no downstream answer evaluation.
 
-\textbf{Research boundary and stopping rule.} We stop configuration search here.
-A further experiment should specify an unresolved hypothesis, explain why
-existing controls cannot answer it, and remain informative without a score gain.
-A targeted snippet intervention could test evidence interference, but must
-preserve applicable conditions and separate content from length effects;
-gold-aware extraction would be an oracle diagnostic, not a deployable selector.
-No such intervention or snippet quality/cost benefit is claimed.
+\textbf{Stopping rule.} We stop configuration search. A new intervention must
+answer an unresolved hypothesis and remain informative without a score gain.
+Snippet tests must preserve conditions, separate content from length effects
+and label gold-aware extraction as oracle. No snippet benefit is claimed.
 
 \textbf{Limits of the evidence.} Qwen was selected on practice and then frozen
 for a new run on the previously inspected dev set, not an untouched independent
@@ -440,12 +442,10 @@ recall can credit text whose useful span was truncated. Same-model judging and
 score-conditioned case review limit quality claims. ASR tests and small probes
 do not establish general transcription equivalence or matched end-to-end cost.
 
-\textbf{Conclusion.} Component choice changes both final quality and cost.
-The investigation locates a CUDA bottleneck, finds no detectable answer gain
-from added context, and finds practice evidence for stronger selection at substantial
-cost. Retrieval gains persist on inspected dev; downstream benefit remains
-uncertain. Case diagnostics distinguish evidence-use hypotheses from evaluation
-limitations, rather than treating benchmark improvement as an explanation.
+\textbf{Conclusion.} Stronger selection improves practice judge scores at substantial
+cost; inspected-dev retrieval gains persist, but answer benefit is uncertain.
+Controls and diagnostics separate system bottlenecks, evidence-use hypotheses
+and measurement limitations rather than treating score gains as explanations.
 
 % References are excluded from the main-body page limit.
 \bibliography{references}
@@ -549,13 +549,23 @@ and uses no model or API calls.
 \path{report/convert_architecture_svg.py},
 \path{report/latex_template/figures/ASR_RAG_System_Architecture_No_Title.pdf},
 \path{rag/results/report-architecture/svg-summary.json}.
+The main-body variant reflows and abbreviates this design, retaining the
+original SVG unchanged:
+\path{report/draw_readable_architecture.py},
+\path{report/latex_template/figures/architecture-report.pdf},
+\path{rag/results/report-architecture/readable-summary.json}.
 \par\noindent\textbf{Offline practice error diagnostic:}
 \path{rag/extensions/analyze_practice_errors.py},
 \path{rag/experiments/practice-error-analysis-v1.json},
+\path{rag/experiments/error-case-recheck.json},
 \path{rag/experiments/PRACTICE_ERROR_ANALYSIS.md},
 \path{rag/results/practice-error-analysis-v1/summary.json},
 \path{rag/results/practice-error-analysis-v1/cases.json},
 \path{rag/results/practice-error-analysis-v1/REVIEW.md}.
+\par\noindent\textbf{Judge-zero figure and arithmetic:}
+\path{report/plot_zero_scores.py},
+\path{report/latex_template/figures/practice-zero-scores.pdf},
+\path{rag/results/report-zero-scores/summary.json}.
 \par
 To recompute summaries only, without invoking generation or judge:
 \begin{verbatim}
@@ -619,6 +629,10 @@ not an automatic judge-error label. Zero-score fractions span 37.6--47.2\%.
 The later Qwen audit independently verifies prompt/cache integrity and records
 an explanation that reverses candidate/reference content. Scores are not
 manually changed, and no population-wide judge error rate is inferred.
+Generation medians avoid API outlier distortion: the dev dense-budget maximum
+is 186{,}750~ms. Dev reranking's 262~ms is on GPU; the pilot's 26~s/query is on
+two CPU cores, not a matched speed comparison. BM25/RRF dev Recall@5 of
+0.208/0.303 is below dense's 0.379, without answer-quality evaluation.
 
 \section{Exploratory reranker model control}
 \label{app:model-control}
@@ -775,6 +789,10 @@ checked outgoing prompts against full corpus text, traced qualitative examples
 and judge-text conflicts to saved records, and drafted the diagnostic discussion.
 This was unblinded AI-assisted review, not independent human adjudication;
 it made no new model, generation or judge calls and did not change saved scores.
+It subsequently checked zero-score/raw-response integrity, documented the
+untested zero-template risk, rechecked three case evidence chains, plotted
+score-state transitions and made a larger-label architecture reflow.
+This second AI source check is not independent human adjudication.
 This describes automated checks, not
 an assertion that the authors independently verified every number. Final author
 review remains outstanding. The group remains

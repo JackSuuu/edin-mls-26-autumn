@@ -1,0 +1,41 @@
+{
+  "arm_segments": {
+    "dense5": [
+      212,
+      90,
+      29,
+      19
+    ],
+    "qwen4_matched5": [
+      229,
+      62,
+      29,
+      30
+    ]
+  },
+  "paired_states": {
+    "zero_zero": 85,
+    "zero_positive": 53,
+    "positive_zero": 36,
+    "positive_positive": 176
+  },
+  "denominator": 350,
+  "segment_order": [
+    "nonzero",
+    "zero_no_qrel_ids",
+    "zero_partial_qrel_ids",
+    "zero_all_qrel_ids"
+  ],
+  "source_path": "rag/results/practice-error-analysis-v1/summary.json",
+  "source_sha256": "6f3fc0ddba531297f524c1cadc434754cb14ce43645818215913e71f9feadcff",
+  "script_sha256": "bfd92a59b963683143dde8f052ee5c7d346ac787ada30d771041313a266f1f33",
+  "pdf_path": "report/latex_template/figures/practice-zero-scores.pdf",
+  "pdf_sha256": "4404417c6d22823a2c3900a3a8b4a3a4684c39c57d98514601b5a586144efbfb",
+  "png_path": "report/latex_template/figures/practice-zero-scores.png",
+  "png_sha256": "2311fbfcda454ce29dfe503322f37f4e9e085c8c4a904ccad80bb53edccdea9f",
+  "not_claimed": [
+    "Human-verified error rates",
+    "Causal reranking effects",
+    "Snippet benefits"
+  ]
+}

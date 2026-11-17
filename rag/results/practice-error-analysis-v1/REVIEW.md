@@ -16,6 +16,10 @@ A missing qrel ID does not prove missing answer evidence. No causal snippet effe
 
 All 700 saved prompts exactly match full corpus text and their saved hashes.
 This rules out local context-builder prefix truncation for these runs, not remote-server truncation.
+All 700 scores match saved raw judge responses and caches; no empty answers.
+The three dimension-zero sets coincide in each arm; this flags calibration, not proven judge bias.
+The frozen judge prompt uses a zero-filled JSON example; anchoring is possible but untested.
+Paired score states: {"positive_positive": 176, "positive_zero": 36, "zero_positive": 53, "zero_zero": 85}.
 
 ## Sample review
 
@@ -348,3 +352,49 @@ gold 位于第二篇，明确 dealer 只关心即时无风险收款而不关心�
 > [gold/r_e725b29f54e87c4a] Your trade has two expirations
 
 > [answer] nonlinear risk profile of vertical spreads
+
+## Second source check (not human adjudication)
+
+OpenAI coding assistant; second unblinded source check, not independent human review
+
+### `q_371c6ca10bf1bf5e`
+
+The retrieved company-tax text assigns carry-forward/offset to a tax loss. The answer assigns it to pension contribution limits. This directly supports a scope/subject substitution observation without needing to adjudicate Irish tax law. It does not prove removing that document would correct the answer.
+
+> [selected] there will be a tax loss that can be carried forward and offset against future profits
+
+> [answer] There are maximum contribution limits, but these can be carried forward and offset against future profits
+
+### `q_e16177bbeb991130`
+
+The gold document names MetaStock, Incredible Charts and VectorVest and the answer covers all three. Extra software recommendations have retrieved support but not necessarily gold support. The judge's Bloomberg sentence is internally contradictory and misattributes selected-only wording to gold. This flags the explanation and score calibration, not a demonstrated fully correct answer or a replacement score.
+
+> [gold] I used to use MetaStock Trader
+
+> [gold] I currently use Incredible Charts
+
+> [gold] I'm looking at VectorVest
+
+> [answer] 2. MetaStock Trader
+
+> [answer] 3. Incredible Charts
+
+> [answer] 4. VectorVest
+
+> [selected] It provides any kind of data you can imagine.
+
+> [judge] The gold evidence only mentions that Bloomberg Professional provides any kind of data you can imagine
+
+### `q_e86dfaec0aa23a50`
+
+Two findings coexist: the answer transfers gold/silver usefulness into the crisis despite gold saying after, while the judge denies helicopters and connections that are present in gold. A judge-explanation error therefore does not vindicate the whole answer. No score was changed.
+
+> [gold] Gold and silver are for after the crisis, not during.
+
+> [answer] they can be exchanged for necessary items during the crisis
+
+> [gold] I'd prefer an ultralight helicopter.
+
+> [gold] connections will likely also be important
+
+> [judge] the mention of helicopters, gasoline

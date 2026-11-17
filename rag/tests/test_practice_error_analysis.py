@@ -26,6 +26,16 @@ class PracticeErrorAnalysisTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             analysis.sample_ids(["a"], size=2)
 
+    def test_paired_score_states_keep_both_directions(self):
+        dense = {q: {"normalised_answer_score": s} for q, s in zip("abcd", [0, 0, .5, 1])}
+        qwen = {q: {"normalised_answer_score": s} for q, s in zip("abcd", [0, .2, 0, 1])}
+        self.assertEqual(analysis.score_states(dense, qwen),
+                         {"zero_zero": 1, "zero_positive": 1, "positive_zero": 1, "positive_positive": 1})
+
+    def test_mismatched_pair_ids_fail(self):
+        with self.assertRaises(AssertionError):
+            analysis.score_states({"a": {}}, {"b": {}})
+
     def test_quote_is_checked_against_named_source(self):
         case = {"query_id": "q", "gold_documents": [{"record_id": "g", "text": "gold text"}],
                 "arms": {"qwen4_matched5": {"answer": "candidate answer",
