@@ -1,0 +1,210 @@
+[
+  {
+    "page": 1,
+    "text": "Agent Memories:   A Database Perspective \nWeek 8 – Machine Learning Systems (Fall 2026)\nYang Cao \nUniversity of Edinburgh "
+  },
+  {
+    "page": 2,
+    "text": "Recall: from retrieval to shared memory \nData and embeddings   Retrieval and indexes   Shared memory \n•   Week 2: encode text/image as vectors for learning and retrieval \n•   Week 7: efficient vector search in full ML stack (RAG, VDBMS) \n•   Today: how LLM-backed agents access and share data (a.k.a. memories)\nGoal: a database view of agent memory management, to reveal underlying principles \n1 "
+  },
+  {
+    "page": 3,
+    "text": "Learning points \n1. What are LLM calls and agents and why do we need agent memory?\n2. Agent memories more than markdown files\n3. Consistency on agent memories, a ’C’-view from ACID’s pespective\n4. Exemplar agent memory systems\n5. connection with LLM KV cache\nSharing memory across agents is just like a transactional database shared by concurrent users \n2 "
+  },
+  {
+    "page": 4,
+    "text": "Running example: a conversation with an agent Conversation \n3 "
+  },
+  {
+    "page": 5,
+    "text": "Running example: a conversation with an agent Conversation \n… \nHelp me manage\ncrawled pages. \nInteraction   𝒖 𝟏 \n3 "
+  },
+  {
+    "page": 6,
+    "text": "Running example: a conversation with an agent Conversation \n… \nHelp me manage\ncrawled pages. \nInteraction   𝒖 𝟏 \n… \nReady. Send a page\nto check and ingest. \nResponse   𝐚 𝟏 \n3 "
+  },
+  {
+    "page": 7,
+    "text": "Running example: a conversation with an agent Conversation \n… \nFor near duplicates,\nkeep the existing page\nand add a URL alias. \nInteraction   𝒖 𝟐 \n…   Interaction   u ! \n… Response   a ! \n3 "
+  },
+  {
+    "page": 8,
+    "text": "Running example: the runtime builds the context Conversation \n… \nFor near duplicates,\nkeep the existing page\nand add a URL alias. \nInteraction   𝒖 𝟐 \n…   Interaction   u ! \n… Response   a ! \n…   Response   𝐚 # \nAgent runtime\nLLM \ninvoke\nContext \nSystem prompt /\ntask instructions etc… \n4 "
+  },
+  {
+    "page": 9,
+    "text": "Running example: the runtime builds the context Conversation \n… \nFor near duplicates,\nkeep the existing page\nand add a URL alias. \nInteraction   𝒖 𝟐 \n…   Interaction   u ! \n… Response   a ! \n…   Response   𝐚 # \nAgent runtime\nLLM \ninvoke\nContext \nPrevious interaction: u ₁ \nPrevious response: a ₁ \nCurrent interaction: u 2 \nSystem prompt /\ntask instructions etc… \n4 "
+  },
+  {
+    "page": 10,
+    "text": "Running example: the runtime builds the context Conversation \n… \nFor near duplicates,\nkeep the existing page\nand add a URL alias. \nInteraction   𝒖 𝟐 \n… \nUnderstood. I will\ncheck before inserting. \nResponse   𝐚 𝟐 \n…   Interaction   u ! \n… Response   a ! \nAgent runtime\nLLM \ninvoke\nContext \nPrevious interaction: u ₁ \nPrevious response: a ₁ \nCurrent interaction: u 2 \nSystem prompt /\ntask instructions etc… \nreply \n4 "
+  },
+  {
+    "page": 11,
+    "text": "Running example: missing information in turn 3 Conversation \n… \nIngest this   page   into our\nshared knowledge base \nInteraction   𝒖 $ \n…   Interaction   u ! \n… Response   a \" \n…   Interaction   u \" \n… Response   a \" \nAgent runtime \ninvoke\nContext \nPrevious interaction: u ₁ \nPrevious response: a ₁ \nPrevious interaction: u 2 \nSystem prompt /\ntask instructions etc…\nPrevious response: a 2 \nCurrent interaction: u 3 \nLLM \n…   Response   𝐚 $ \n5 "
+  },
+  {
+    "page": 12,
+    "text": "Running example: missing information in turn 3 Agent runtime \ninvoke\nContext \nPrevious interaction: u ₁ \nPrevious response: a ₁ \nPrevious interaction: u 2 \nSystem prompt /\ntask instructions etc…\nPrevious response: a 2 \nCurrent interaction: u 3 \nLLM   What   “knowledge base” ? \nMissing information \nConversation \n… \nIngest this   page   into our\nshared   knowledge base \nInteraction   𝒖 $ \n…   Interaction   u ! \n… Response   a \" \n…   Interaction   u \" \n… Response   a \" \n…   Response   𝐚 $ \n5 "
+  },
+  {
+    "page": 13,
+    "text": "Running example: external memory (near-duplicate case) Conversation \n… \nIngest this   page   into our\nshared knowledge base \nInteraction   𝒖 $ \n…   Interaction   u ! \n… Response   a \" \n…   Interaction   u \" \n… Response   a \" \n…   Response   𝐚 $ \nAgent runtime\nLLM \ninvoke\nContext \nPrevious interaction: u ₁ \nPrevious response: a ₁ \nPrevious interaction: u 2 \nSystem prompt /\ntask instructions etc…\nPrevious response: a 2 \nCurrent interaction: u 3 \nVector Store \nStored page embeddings \npage_id   embedding \npage_0087   [0.12, -0.37, 0.58, …]\npage_0136   [-0.25, 0.41, 0.09, …]\n…   … \nExternal Memory \nRelational Store \nPage records and URL alias \npage_id   url   title   … \npage_0087   x.test/87   Memory   …\npage_0136   x.test/136   Tools   …\npage_0245   x.test/245   RAG   …\n…   …   …   … \nalias_url   page_id \nx.test/a87   page_0087\n…   … \nurl_aliases (TEXT columns)\npages (TEXT columns) \n6 "
+  },
+  {
+    "page": 14,
+    "text": "Running example: external memory (near-duplicate case) Conversation \n… \nIngest this   page   into our\nshared knowledge base \nInteraction   𝒖 $ \n…   Interaction   u ! \n… Response   a \" \n…   Interaction   u \" \n… Response   a \" \n…   Response   𝐚 $ \nAgent runtime\nLLM \nContext \nPrevious interaction: u ₁ \nPrevious response: a ₁ \nPrevious interaction: u 2 \nSystem prompt /\ntask instructions etc…\nPrevious response: a 2 \nCurrent interaction: u 3 \nVector Store \nStored page embeddings \npage_id   embedding \npage_0087   [0.12, -0.37, 0.58, …]\npage_0136   [-0.25, 0.41, 0.09, …]\n…   … \nExternal Memory \nRelational Store \nPage records and URL alias \npage_id   url   title   … \npage_0087   x.test/87   Memory   …\npage_0136   x.test/136   Tools   …\npage_0245   x.test/245   RAG   …\n…   …   …   … \nalias_url   page_id \nx.test/a87   page_0087 \nx.test/1042   page_0087 \nurl_aliases (TEXT columns)\npages (TEXT columns) \nResult \nmatch: page_0087\naction: alias_updated \naccess\nresult \nIf a near-duplicate exists,\nadd the new URL as an alias \n6 "
+  },
+  {
+    "page": 15,
+    "text": "Running example: external memory (near-duplicate case) Conversation \n… \nIngest this   page   into our\nshared knowledge base \nInteraction   𝒖 $ \n…   Interaction   u ! \n… Response   a \" \n…   Interaction   u \" \n… Response   a \" \nAgent runtime\nLLM \ninvoke again\nContext \nPrevious interaction: u ₁ \nPrevious response: a ₁ \nPrevious interaction: u 2 \nSystem prompt /\ntask instructions etc…\nPrevious response: a 2 \nCurrent interaction: u 3 \nVector Store \nStored page embeddings \npage_id   embedding \npage_0087   [0.12, -0.37, 0.58, …]\npage_0136   [-0.25, 0.41, 0.09, …]\n…   … \nExternal Memory \nRelational Store \nPage records and URL alias \npage_id   url   title   … \npage_0087   x.test/87   Memory   …\npage_0136   x.test/136   Tools   …\npage_0245   x.test/245   RAG   …\n…   …   …   … \nalias_url   page_id \nx.test/a87   page_0087\nx.test/1042   page_0087 \nurl_aliases (TEXT columns)\npages (TEXT columns) \nResult \nmatch: page_0087\naction: alias_updated \n… \nAlias updated: page_0087 \nResponse   𝐚 $ \nIf a near-duplicate exists,\nadd the new URL as an alias \n6 "
+  },
+  {
+    "page": 16,
+    "text": "Running example: external memory (new-page case) Conversation \n… \nIngest this   page   into our\nshared knowledge base \nInteraction   𝒖 $ \n…   Interaction   u ! \n… Response   a \" \n…   Interaction   u \" \n… Response   a \" \n…   Response   𝐚 $ \nAgent runtime\nLLM \nContext \nPrevious interaction: u ₁ \nPrevious response: a ₁ \nPrevious interaction: u 2 \nSystem prompt /\ntask instructions etc…\nPrevious response: a 2 \nCurrent interaction: u 3 \nVector Store \nStored page embeddings \npage_id   embedding \npage_0087   [0.12, -0.37, 0.58, …]\npage_0136   [-0.25, 0.41, 0.09, …] \npage_0342   [-0.80, 0.10, -0.20, …] \nExternal Memory \nRelational Store \nPage records and URL alias \npage_id   url   title   … \npage_0087   x.test/87   Memory   …\npage_0136   x.test/136   Tools   …\npage_0245   x.test/245   RAG   … \npage_0342   x.test/342   Ingest   …\nalias_url   page_id \nx.test/a87   page_0087\n…   … \nurl_aliases (TEXT columns)\npages (TEXT columns) \nResult\nmatch: none \nnew_page_id: page_0342 \nresult \nOtherwise, process & save the\npage and its embedding \naccess \n7 "
+  },
+  {
+    "page": 17,
+    "text": "Running example: external memory (new-page case) Conversation \n… \nIngest this   page   into our\nshared knowledge base \nInteraction   𝒖 $ \n…   Interaction   u ! \n… Response   a \" \n…   Interaction   u \" \n… Response   a \" \nAgent runtime\nLLM \ninvoke again\nContext \nPrevious interaction: u ₁ \nPrevious response: a ₁ \nPrevious interaction: u 2 \nSystem prompt /\ntask instructions etc…\nPrevious response: a 2 \nCurrent interaction: u 3 \nVector Store \nStored page embeddings \npage_id   embedding \npage_0087   [0.12, -0.37, 0.58, …]\npage_0136   [-0.25, 0.41, 0.09, …]\npage_0342   [-0.80, 0.10, -0.20, …] \nExternal Memory \nRelational Store \nPage records and URL alias \npage_id   url   title   … \npage_0087   x.test/87   Memory   …\npage_0136   x.test/136   Tools   …\npage_0245   x.test/245   RAG   …\npage_0342   x.test/342   Ingest   …\nalias_url   page_id \nx.test/a87   page_0087\n…   … \nurl_aliases (TEXT columns)\npages (TEXT columns) \nResult \nmatch: none\nnew_page_id: page_0342 \n… \nNew page saved: page_0342 \nResponse   𝐚 $ \nOtherwise, process & save the\npage and its embedding \n7 "
+  },
+  {
+    "page": 18,
+    "text": "What does one LLM call receive? \nCall 1 input:   Our knowledge base lives at kb.x.test.\nCall 2 input:   Where does our knowledge base live? \nCall 2 is a separate request. Its input does not contain the address; so can’t answer.\nabstract view of LLM call:   x t   ∼   p θ   (   · |   x 1 , . . . , x t − 1 ) . \n•   x 1 , . . . , x t − 1 : the tokens of this call’s input. We call them the   context . \n•   θ : the model parameters (fixed during inference).\nCall 2 can use the address only if the runtime stores it and supplies it again. \n8 "
+  },
+  {
+    "page": 19,
+    "text": "An example agent: web page crawl assistant \nA page crawl example: a user asks an assistant to ingest the crawled web page x.test/1042\ninto a shared knowledge base. The knowledge base should not store a page twice, even\nwhen the two copies differ a little. Such copies are   near-duplicates .\nArrangement   On the web page x.test/1042   Next step set by\nOne model call   Summarise this page   Application code\nTool calling   Emit   ingest_page(\"x.test/1042\")   Model output; code runs it\nFixed workflow   Fetch, embed, search, insert if new   Application code\nAgent loop   Read the tool result, emit the next call   Model output, each step \n•   A   tool call   is structured text in model output; runtime checks it and runs the function. \n•   An   agent   in this lecture is a loop of model calls and tool results. \ninterpretation taken from ”Building effective agents” (2024), by Anthropic \n9 "
+  },
+  {
+    "page": 20,
+    "text": "Interact with the agent: turns 1 and 2 \nSpeaker   Message\nUser 1   Help me manage crawled pages.\nAssistant   Ready. Send a page to check and ingest.\nUser 2   For near-duplicates, keep the existing page and add a URL alias.\nAssistant   Understood. I will check before inserting. \n•   After turn 2 the conversation holds four messages, and no tool has run.\nWhere is the near-duplicate rule from turn 2 stored at this point? \n10 "
+  },
+  {
+    "page": 21,
+    "text": "Interact with the agent: turns 1 and 2 \nSpeaker   Message\nUser 1   Help me manage crawled pages.\nAssistant   Ready. Send a page to check and ingest.\nUser 2   For near-duplicates, keep the existing page and add a URL alias.\nAssistant   Understood. I will check before inserting. \n•   After turn 2 the conversation holds four messages, and no tool has run.\nWhere is the near-duplicate rule from turn 2 stored at this point?\nOnly in the conversation; starting a new session would lose the rule \n10 "
+  },
+  {
+    "page": 22,
+    "text": "Turn 3 \nWhat the model sees for turn 3 (user 3): \nsystem:   You manage crawled pages. Tool: ingest_page(url).\nuser 1:   Help me manage crawled pages.\nreply 1: Ready. Send a page to check and ingest.\nuser 2:   For near-duplicates, keep the existing page and add a URL alias.\nreply 2: Understood. I will check before inserting.\nuser 3:   Ingest x.test/1042 into our shared knowledge base. \n•   Context: all these six messages (the stored pages are not part of model input/context) \n•   The model output is a tool call:   ingest_page(\"x.test/1042\") .\nThe stored pages are outside the context (part of the agent memory) \n11 "
+  },
+  {
+    "page": 23,
+    "text": "The shared knowledge base before turn 3 \nRelational store:   pages \npage_id   url   title\npage_0087   x.test/87   Memory\npage_0136   x.test/136   Tools\npage_0245   x.test/245   RAG\nRelational store:   url_aliases \njust one row: x.test/a87   →   page_0087.\nVector store: embeddings\npage_id   toy embedding ( E )\npage_0087   − 0 . 70 \npage_0136   0 . 60 \npage_0245   0 . 30 \nE : toy embeddings of the page for\nduplication (similarity) checking \n12 "
+  },
+  {
+    "page": 24,
+    "text": "ingest_page   tool call \ndef ingest_page(page):\ncands = memory.read_vector(query=page.emb, top_k=k)   # 1. search\nmatch = verify_near_duplicate(page, cands)\nif match is None:   # 2. new page\nrecord = process_page(page)\nmemory.insert_page(record)\nmemory.insert_vector(page_id=record.id, emb=page.emb)\nreturn {\"action\": \"page_inserted\", \"page_id\": record.id}\nmemory.upsert_alias(url=page.url, page_id=match.id)   # 3. alias\nreturn {\"action\": \"alias_updated\", \"match\": match.id} \ninsert   page   only when the search finds no near-duplicate \n13 "
+  },
+  {
+    "page": 25,
+    "text": "Tool outcome A: x.test/1042 is a near-duplicate \n•   Incoming page: x.test/1042, toy   E   =   − 0 . 67 . Threshold:   τ   = 0 . 10 . \n•   Nearest stored page: page_0087 at   − 0 . 70 . Distance   0 . 03   ≤   0 . 10 , so it is a match.\nStore   Change\npages   none\nembeddings   none\nurl_aliases   add x.test/1042   →   page_0087\nTool result:   action: alias_updated, match: page_0087 \nThe result enters the context. The next model call replies: Alias updated: page_0087. \n14 "
+  },
+  {
+    "page": 26,
+    "text": "Tool outcome B: x.test/342 is a new page \n•   Incoming page: x.test/342 ( page_0342 ), title Ingest, toy   E   =   − 0 . 25 . \n•   Nearest stored pages: page_0087 at   0 . 45 , page_0245 at   0 . 55 . Both exceed   τ   = 0 . 10 .\nStore   Change\npages   add page_0342, x.test/342, Ingest\nembeddings   add page_0342,   − 0 . 25 \nurl_aliases   none\nTool result:   action: page_inserted, page_id: page_0342 \nReply: New page saved: page_0342; two writes to   pages   and   embeddings   tables. \n15 "
+  },
+  {
+    "page": 27,
+    "text": "Turn 3 end to end: two model calls and one tool run \nContext   Model call   Ingest tool\nShared memory Tool result \n•   Model call 1 emits   ingest_page(\"x.test/1042\") . \n•   The tool result becomes message 7 of the context. \n•   Model call 2 writes the reply from that result. \n16 "
+  },
+  {
+    "page": 28,
+    "text": "What did this interaction have to retain? \nIn our example   source\nPolicy   Keep the existing page, add an alias   Conversation, turn 2\nShared records   3 pages, 1 alias, 3 vectors   External store\nTool result   alias_updated, page_0087   Context, message 7\nSource text   The page at x.test/1042   Crawler output \nagent memory   is the state that an agent system (system@LLM) keeps outside context\nto affect later model calls and the operations that read and write it.\noutside the chat context/history. \n17 "
+  },
+  {
+    "page": 29,
+    "text": "Why not just text files (e.g., AGENTS.md and CLAUDE.md)? \n# AGENTS.md\nBefore inserting a crawled page, check for a near-duplicate.\nIf one exists, keep it and add the new URL as an alias. \nProperty   Codex: AGENTS.md   Claude Code: CLAUDE.md\nWritten by   User   User; Claude writes auto memory\nLoaded   Once per run   Start of every session\nSize limit   32 KiB by default   Auto memory: 200 lines or 25 KB\nRole   Guidance in the prompt   Context, not enforced configuration\ncan record rule from turn 2, but it’s insufficient/incomplete \n18 "
+  },
+  {
+    "page": 30,
+    "text": "Memory as markdown files \nkb/page_0087.md: title Memory, url x.test/87\nkb/page_0136.md: title Tools, url x.test/136\nkb/page_0245.md: title RAG, url x.test/245\nkb/aliases.md: x.test/a87 -> page_0087 \nTurn 3 needs three   operations   on these files:\n1. Find a stored page that is a near-duplicate of x.test/1042.\n2. If one exists, add a line to   aliases.md .\n3. Otherwise create a new page file.\ncan we use md files and filesystem to serve as memory of this agent (webpage crawl)? \n19 "
+  },
+  {
+    "page": 31,
+    "text": "Operation 1: find the near-duplicate (via md files) \nAssume 10,000 stored pages of 1,000 tokens each. The incoming page is x.test/1042.\nMethod   Work per ingest   Finds page_0087? \ngrep   for the URL   One scan of the files   No. The URLs differ \ngrep   for the title   One scan of the files   Only for an equal title\nModel reads every file   10,000,000 input tokens   Yes, at that cost\nCompare stored embeddings   10,000 distances   Yes. Distance 0.03\nVector index from Week 7   Far fewer distances   Usually. ANN can miss\nneeds embeddings and indices (RAG vs. filesystem) \n20 "
+  },
+  {
+    "page": 32,
+    "text": "Operation 2: two agents add an alias (coordination over md files) \nt1: A reads aliases.md, 1 line: x.test/a87 -> page_0087\nt2: B reads aliases.md, 1 line: x.test/a87 -> page_0087\nt3: A saves 2 lines, adding x.test/1042 -> page_0087\nt4: B saves 2 lines, adding x.test/2042 -> page_0136 \n•   Final file: the first line and B’s line. A’s alias is gone. \n•   Neither agent received an error. \n•   In database terms this is a   lost update . A lock or a version check on the file prevents it.\nWe need conflict resolution to coordinate conflicting operations \n21 "
+  },
+  {
+    "page": 33,
+    "text": "Connecting the dots: what turn 3 needs from storage \nneed in turn 3   dealt by\nkeep the page text   files or a document store\nlook up a page by ID or URL   relational table with keys\nfind similar pages   embeddings and a vector index\nlink pages to the entities they mention   graph store\napply several writes as one unit   transactions\nagent memory for this example: a hybrid data system\nfiles, relational records, embeddings and indexes. \n22 "
+  },
+  {
+    "page": 34,
+    "text": "Connecting the dots: what turn 3 needs from storage \nneed in turn 3   dealt by\nkeep the page text   files or a document store\nlook up a page by ID or URL   relational table with keys\nfind similar pages   embeddings and a vector index\nlink pages to the entities they mention   graph store\napply several writes as one unit   transactions\nagent memory for this example: a hybrid data system\nfiles, relational records, embeddings and indexes.\nQuestion: Can we use git? \n22 "
+  },
+  {
+    "page": 35,
+    "text": "Example agent memory systems \nSystem   Relational   Vector search   Graph\nMem0 OSS   SQLite history   Qdrant; pgvector   Not in OSS\nLetta V1   PostgreSQL   pgvector   None\nLangMem + LangGraph   PostgreSQL   pgvector   None\nGraphiti   None   Inside the graph database   Neo4j; FalkorDB\nA-Mem   None   ChromaDB   None\nMIRIX   PostgreSQL   pgvector; Redis cache   Neo4j, optional\nMemOS   None   Qdrant   Neo4j\nCognee OSS   SQLite; PostgreSQL   LanceDB; pgvector   Ladybug; Neo4j \n•   All eight systems have a vector search component. \n•   Seven of the eight pair it with a relational store or a graph store. \n23 "
+  },
+  {
+    "page": 36,
+    "text": "Memory vs. RAG (Week7) \nManaged\nmemory   Retrieve\nGenerate / act Observe / revise \n•   RAG’s read path: chunk, embed, index, retrieve, generate (the corpus is given). \n•   In turn 3 the agent’s own tool call changed the corpus (e.g., one alias row added).\nRAG is the read path of memory. Memory needs both read and write.\nAnd write path causes troubles for multi-agent interaction \n24 "
+  },
+  {
+    "page": 37,
+    "text": "One ingest as a sequence of reads and writes \nIngest of x.test/342, toy   E   =   − 0 . 25 :\nStep   Operation   On our data\nBEGIN   Start a transaction \nR V   Read vectors near the page   Nearest distance 0.45: no match \nW R   Write the relational row   page_0342, x.test/342, Ingest \nW V   Write the vector   page_0342,   − 0 . 25 \nCOMMIT   Make both writes permanent   Store holds 4 pages \n•   A   transaction   is the group of operations between BEGIN and COMMIT \n•   adding alias:   R V   , then   W A   (the write of one alias row) \n25 "
+  },
+  {
+    "page": 38,
+    "text": "The no-duplicate memory rule \nthe memory (store) never holds two pages that are near-duplicates of each other.\nLet   P   be the set of stored pages,   E   the encoder,   d   the distance and   τ   the threshold. \nI ( P   )   ≡ ¬∃   a, b   ∈   P   :   a ̸   =   b   ∧   d ( E ( a ) , E ( b ))   ≤   τ. \n•   Our toy case:   d   is the absolute difference and   τ   = 0 . 10 \n•   In database terms such a rule is an   invariant :   P   is consistent if   I ( P   )   holds \n•   a commit (consistent write) that changes   P   into   P   ′ : if   I ( P   )   holds, then   I ( P   ′ )   must hold \n26 "
+  },
+  {
+    "page": 39,
+    "text": "Two new pages arrive: p and q \np: x.test/345, title llm, toy E = 0.00\nLLM agents store facts in external memory.\nq: x.test/346, title LLM, toy E = 0.08\nLLM agents store facts in an external memory. \n•   p and q are near-duplicate pages: their distance is   0 . 08   ≤   0 . 10   threshold \n•   Each doesn’t have duplicate in   pages   (memory):\nclosest stored page is ‘RAG’:   0 . 30   from p and   0 . 22   from q).\nIf p is stored first, what should   ingest(q)   do? \n27 "
+  },
+  {
+    "page": 40,
+    "text": "Two new pages arrive: p and q \np: x.test/345, title llm, toy E = 0.00\nLLM agents store facts in external memory.\nq: x.test/346, title LLM, toy E = 0.08\nLLM agents store facts in an external memory. \n•   p and q are near-duplicate pages: their distance is   0 . 08   ≤   0 . 10   threshold \n•   Each doesn’t have duplicate in   pages   (memory):\nclosest stored page is ‘RAG’:   0 . 30   from p and   0 . 22   from q).\nIf p is stored first, what should   ingest(q)   do?\nadd x.test/346 as an alias of p (don’t store q as a second page) \n27 "
+  },
+  {
+    "page": 41,
+    "text": "serial ingests \nStep   Operation   Result\n1   A:   R V   for p   Nearest is RAG at 0.30. No match\n2   A:   W R ,   W V   , COMMIT   p is stored\n3   B:   R V   for q   Finds p at 0.08. Match\n4   B:   W A , COMMIT   add alias x.test/346   →   p. No new page \n•   Final store ( pages   relation): Memory, RAG, Tools, p. Every pair is at least 0.30 apart. \n•   first q then p: stores q and makes x.test/345 an alias (the rule holds again)\nany   serial   transactional execution of multiple ingests keeps memory always consistent \n28 "
+  },
+  {
+    "page": 42,
+    "text": "Case 1: two agents ingest at the same time \nTime   Agent A: ingest(p)   Agent B: ingest(q)\nt1   R V   : nearest 0.30, no match\nt2   R V   : nearest 0.22, no match\nt3   W R ,   W V   : insert p\nt4   COMMIT\nt5   W R ,   W V   : insert q\nt6   COMMIT \n•   Final memory: p and q stored with distance   0 . 08   ≤   τ   (inconsistent memory state)\nB’s search at t2 was correct for the memory at t2 but incorrect at t6?\nQuestion: would a unique key constraint on   pages   have stopped this? \n29 "
+  },
+  {
+    "page": 43,
+    "text": "Learning from the past (DBMS): transactions and ACID \nProperty   A transaction guarantees   In our   ingest \nAtomicity   All of its writes happen, or none   Page row plus vector\nConsistency   Each commit keeps the declared rules   No pair within   τ \nIsolation   Concurrent ones do not interfere   A and B in Case 1\nDurability   Committed data survives a crash   p stays stored \n•   In Case 1 each transaction alone kept the rule. Their interleaving broke it. \n•   So Case 1 is a failure of   isolation . \n30 "
+  },
+  {
+    "page": 44,
+    "text": "Learning from the past (DBMS): isolation levels \nAssume pages and vectors live in one PostgreSQL database. Replay Case 1 at each level:\nLevel   A transaction reads   Case 1 result\nRead Committed   Commits before each statement   p and q stored (inconsistent)\nRepeatable Read   One snapshot per transaction   p and q stored (inconsistent)\nSerializable   As if run one at a time   One aborts, then retries\nretry runs after the other commit; its search finds the stored page and adds an alias \n31 "
+  },
+  {
+    "page": 45,
+    "text": "Connecting the dots: one transaction or three? \nIn one transaction \nBEGIN\nR_V: search\nW_R: insert page\nW_V: insert vector\nCOMMIT \nSeparated transactions \nBEGIN; R_V: search; COMMIT\nBEGIN; W_R: insert page; COMMIT\nBEGIN; W_V: insert vector; COMMIT \n•   In one: both stores are in one database, such as PostgreSQL with pgvector. \n•   Separated: lines 1 and 3 run in the vector store, line 2 in the relational store.\nAn isolation level protects only what runs inside one transaction. \n32 "
+  },
+  {
+    "page": 46,
+    "text": "Case 2: the vector store lags behind   pages   table \nA finishes before B starts. A’s vector write is queued. The columns list only p and q.\nTime   pages table   Vector store   Event\nt1   p   none   A commits p. Its vector is queued\nt2   p   none   B:   R V   for q finds no match\nt3   p, q   none   B commits q\nt4   p, q   p, q   The queue is applied \n•   At t4 both stores agree again. The pair p, q stays stored at distance 0.08.\nThe two ingests did not overlap. The vector store was one write behind the table. \n33 "
+  },
+  {
+    "page": 47,
+    "text": "Learning from the past (DBMS): index consistency \nDerived structure   Updated   Can lag?\nIndex in PostgreSQL   Inside the INSERT transaction   No\nMaterialized view   At the next REFRESH   Yes\nAsynchronous replica   When the log is replayed   Yes\nSeparate vector store   By a second write or a queue   Yes \n•   index, view and replica are   derived   data; each can be rebuilt from the table. \n•   pgvector index is a PostgreSQL index (so always consistent)\nA derived structure agrees with its table at every commit\nonly if\nboth change in one transaction \n34 "
+  },
+  {
+    "page": 48,
+    "text": "A baseline routine \nvector = encode(page)   # fixed model, before locking\nwith transaction():   # one database, READ COMMITTED\nlock_scope_guard(scope)   # one ingest at a time\nmatch = exact_nearest(scope, vector)   # scans the pages table\nif match is not None and match.distance <= tau:\nadd_alias(page.url, match.id)\nelse:\ninsert_page_and_vector(page, vector)\nenqueue_index_update()   # ANN index catches up later \n•   The lock orders overlapping ingests: Case 1 \n•   transactional scan reads vectors in   pages : Cases 2 (and potential ANN errors) \n35 "
+  },
+  {
+    "page": 49,
+    "text": "Replay Case 1 with the baseline \nA: ingest p   B: ingest q\nAcquire guard\nExact check: no match\nCommit p + vector\nWait for guard\nRelease\nAcquire guard\nFresh check: find p\nCommit URL alias \nB searches after A’s commit. It finds p at 0.08 and adds the alias x.test/346. \n36 "
+  },
+  {
+    "page": 50,
+    "text": "How does baseline address memory consistency? \nCase   What the baseline does   Result for q\ncase 1: overlap   B waits for the lock, then searches   Finds p. Alias\ncase 2: lagging index   Check reads the pages table   Finds p. Alias\n(ANN miss)   Check computes all 4 distances   Minimum 0.08. Alias \n•   Final   pages   in all three replays: Memory, RAG, Tools, p. \n•   Final aliases: x.test/a87   →   page_0087 and x.test/346   →   p.\nbaseline is inefficient:\nlock forces ingests of the same scope run one at a time\nexact scan does not exploit ANN indices and is impractical \n37 "
+  },
+  {
+    "page": 51,
+    "text": "Case study: Cognee \nCognee by default: SQLite for rows, LanceDB for vectors, Ladybug for the graph.\nOur rule needs   system guarantees   left to the application\nDetect identical bytes   Yes (content_hash lookup)   Nothing\nDetect a near-duplicate   No   Distance test against   τ \nPage plus URL aliases   No   pages and url_aliases tables\nCase 1: one writer at a time   lock in one process   Locking across processes\nCase 2: vector with its page   separate writes   A check that sees every page\nIn Cognee, 1st stage commits a row of SQL table   data . Graph nodes and vectors follow later.\nMemory consistency rules and their enforcement still rely on application \n38 "
+  },
+  {
+    "page": 52,
+    "text": "Discussion: are RAG and the KV cache part of agent memory? \nStored page   Context tokens   KV cache\nState   For page_0087   Reusable by\nStored record   Row, file and vector   Any agent with access\nRetrieved context   Its text inside one prompt   That model call\nKV cache   Attention state of that prompt   Same model, same prefix \n•   RAG is the arrow from the store to the context: read path of agents \n•   MemOS activation memory: runtime hidden states and KV-cache. \n39 "
+  }
+]

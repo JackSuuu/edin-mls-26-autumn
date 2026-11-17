@@ -1,0 +1,8 @@
+{
+  "rag/extensions/run_passage_pilot.py": "90cd0ac1ddd116ae4d3781482544ab90f59af1d7e2670225a20e50475f4fee23",
+  "rag/extensions/passage_selection.py": "49c341217797a9c9fa392a752c80c87e88e0f3a86ad8d478cbc850a3500a62a6",
+  "rag/tests/test_passage_selection.py": "9fc3f31a75ee6b9acff5de7a2e3b2cfc25b6109a08f1d445ffcc39641732c636",
+  "rag/experiments/passage-pilot-v1.json": "c1e8f25a8312ce6a15e9aedfcb72f845ed49aaa303827da9014999f22b818de5",
+  "rag/scripts/icf_passage_prepare.sbatch": "61e7a44c38bb4040e8fa573f08209ce0ee0256ca488779dc8586446bf9093a8c",
+  "rag/scripts/icf_passage_answers.sbatch": "ca00c7528e431b1e50613073a4f1b96a31f5d7296e558c87f0bd293230b620c6"
+}

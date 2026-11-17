@@ -1,0 +1,130 @@
+[
+  {
+    "page": 1,
+    "text": "INFR11269 MACHINE LEARNING SYSTEMS \nHomework 1: \nASR on your own \nCUDA kernels \nThe model, the tasks and the benchmark \n2026/27 \ngithub.com/ed - aisys/edin - mls - 26 - autumn "
+  },
+  {
+    "page": 2,
+    "text": "What does an ASR model do? \nAutomatic speech recognition: speech in, text out. GLM - ASR - Nano does it in three steps. \nCon   cord   returned   to   its \nplace   amid   st   the   t \nents   .   end \nThe real recording: waveform, then spectrogram   Encoder output (illustration)   The 13 tokens it writes for the recording \n1. Hear \nThe recording is about 56,000 \nnumbers: 3.5 s at 16 kHz. On the CPU \nit becomes a mel spectrogram: a \npicture of which pitches are loud at \neach moment. \n2. Listen \nThe audio encoder reads the whole \nspectrogram and describes every 20 \nms of sound with 1280 numbers, using \nthe sounds around it as context. \n3. Write \nThe text decoder, a language model, \nwrites the transcript one token at a \ntime. A token is a word or a piece of \none; the last one means “end”. \nSteps 2 and 3 run on the GPU. Their arithmetic is what your kernels compute.   02 "
+  },
+  {
+    "page": 3,
+    "text": "What is a mel spectrogram? \nA picture of the sound: which pitches are loud at each moment. The model reads it like an image. \nsound \nhigh \npitch \n↑ \nlow \n0 s   1 s   2 s   3 s time → \none column, zoomed in \nbar = loudness \nLike a music equalizer \nOne column is a 10 ms \nsnapshot: how loud each of 128 \npitch bands is, low at the \nbottom, high at the top. 100 \nsnapshots a second, side by \nside, make the picture. \nHow to read it \nTime runs left to right, pitch bottom to \ntop, and darker means louder. Vowels \nmake dark stripes low down; “s” and “t” \nmake smears high up. \nWhy “mel” \nEars tell low pitches apart far better \nthan high ones: 100 vs 200 Hz is \nobvious, 7100 vs 7200 Hz is not. So \nthe bands are narrow low down and \nwide high up. \nHow it is made \nCut the sound into 25 ms slices, one \nevery 10 ms. Measure each pitch in \nevery slice (a Fourier transform), add \nthem up into 128 bands, take the log. \nEvery recording is padded to 30 s, so the model always gets 128   ×   3000 numbers; this one fills the first 350 columns.   03 "
+  },
+  {
+    "page": 4,
+    "text": "GLM - ASR - Nano, stage by stage \nAudio \n3.5 s \nMel \nspectrogram   2   ×   Conv   Encoder \n32 layers   Projector   Decoder \n28 layers \nlm_head \n+ softmax   Token \nappend the token and run again CPU (Hugging Face) \nStage   Purpose   Output shape   Your kernels \nMel spectrogram   Turn the sound into a picture of pitch over time   128   ×   3000   none (CPU) \n2 convolutions   Spot short sound patterns; halve time to 20 ms steps   1500   ×   1280   im2col + Task 3 \nAudio encoder   Understand each sound in the context around it   1500   ×   1280   Tasks 1 – 4 \nProjector   Shrink the audio 4 ×   into something the decoder can read   44   ×   2048   Task 3 \nText decoder   Read the audio and the text so far; decide the next token   59 → 71   ×   2048   Tasks 1 – 4 \nlm_head + softmax   Turn that into a probability for each of the 59,264 tokens   1   ×   59,264   Task 3, Task 2 \nAbout 2.3 B parameters, stored as float32: about 9 GB of GPU memory.   04 "
+  },
+  {
+    "page": 5,
+    "text": "How the decoder writes the text \nPrompt + text so far \ninstruction, 44 audio positions \nDecoder \n28 layers \nlm_head + softmax \n59,264 probabilities \nKeep the most likely \ntoken (argmax) \nappend the token to the text, run the decoder again \nThe 13 runs for the test recording: the token each run keeps, and how many positions the decoder read in that run \nrun 1 \nCon \n59 \nrun 2 \ncord \n60 \nrun 3 \nreturned \n61 \nrun 4 \nto \n62 \nrun 5 \nits \n63 \nrun 6 \nplace \n64 \nrun 7 \namid \n65 \nrun 8 \nst \n66 \nrun 9 \nthe \n67 \nrun 10 \nt \n68 \nrun 11 \nents \n69 \nrun 12 \n. \n70 \nrun 13 \nend \n71 \nGreedy \nEach run keeps only the most likely \ntoken: no sampling, no search. \nNo KV cache \nEach run recomputes every position \nfrom scratch, so the input grows from \n59 to 71. \nStops at “end” \n13 runs   ×   28 decoder layers, after one \npass of the encoder. \nThe prompt is 59 positions: 15 tokens of instruction (“Please transcribe this audio into text”) and 44 of audio.   05 "
+  },
+  {
+    "page": 6,
+    "text": "Inside one layer: where your kernels run \nEvery encoder and decoder layer has this shape. The linear layers (Task 3) do almost all the arithmetic. \nNorm \nTask 2 \nq, k, v \nTask 3 \nRoPE \nTask 1 \nAttention \nTask 4 \nOut linear \nTask 3   +   Norm \nTask 2 \nMLP \nTask 3   + \nresidual: add the input back, so each layer only adds a correction \nStep   Purpose   Task \nNorm   Keep the numbers at a steady scale, so dozens of stacked layers stay stable   Task 2 \nq, k, v   Give each position a question (q), a label (k) and a message (v) for attention   Task 3 \nRoPE   Tell attention where each position is, so that order matters   Task 1 \nAttention   Let each position gather information from all the others: this is where context comes in   Task 4 \nOut linear   Bring the gathered information back to the layer's width, then add the input back   Task 3 \nMLP   Process each position on its own; about two thirds of the parameters are here   Task 3 \nCalls per transcription: 2757 linear, 396 attention, 396 RoPE, 806 norm, 13 softmax.   06 "
+  },
+  {
+    "page": 7,
+    "text": "What you need to do: four kernels \nTask   File and test   What you write   The CUDA idea \n1. RoPE   task1_rope.cu \nmake test1 \nOne thread per pair of numbers: rotate q and \nk in place \nIndex arithmetic; a \nmemory - bound kernel \n2. Reductions   task2_reduce.cuh, .cu \nmake test2 \nWarp and block sum and max, then \nRMSNorm and a one - pass softmax \nWarp shuffles, shared \nmemory, barriers \n3. Tiled GEMM   task3_gemm.cu \nmake test3 \nThe linear layer y = x·Wᵀ + b in shared - \nmemory tiles, with GELU fused \nTiling, coalesced reads, \nbank conflicts \n4. Attention   task4_attention.cu \nmake test4 \nAttention over tiles of 32 keys with an online \nsoftmax; GQA and causal mask \nFlashAttention - style \nstreaming \nFill in the blanks \nEach blank is 1 to 15 lines. The code around them, the Python side and the tests are written for you. \nDo the tasks in order: each builds on the last, and Task 4 calls your Task 2 warp reductions.   07 "
+  },
+  {
+    "page": 8,
+    "text": "How to do it \nOne GPU per person:   only   -- gres=gpu:1, one GPU shell or job at a time. Exit when you are done. \n1. Get the code, set up once \nClone   github.com/ed - aisys/edin - mls - 26 - autumn   on the head \nnode, then run setup_env.sh. \n2. Get one GPU \nThe head node has no GPU. Each session, ask Slurm for \none card, put nvcc on PATH and activate mls - asr. \n3. Read the task guide \ndocs/taskN - *.md: what the kernel computes, which thread \ndoes what, and what each blank needs. \n4. Fill in the blanks \nReplace // YOUR CODE HERE, then run make and fix every \ncompiler error. \n5. Test, then run the model \nmake testN compares your kernel with a CPU version. When \nit says ALL PASS, run the model with your kernels so far. \n# once,   on the head node (mlp) \ngit clone   \\ \nhttps://github.com/ed - aisys/edin - mls - 26 - autumn.git \ncd edin - mls - 26 - autumn/hw1 - asr \nbash setup_env.sh \n# every   session: ONE GPU (gpu:1) \nsrun   - p Teaching   -- gres=gpu:1   \\ \n-- cpus - per - task=2   -- mem=16G   \\ \n-- time=01:00:00   -- pty bash \nexport PATH=/opt/cuda - 12.8.0/bin:$PATH \nconda activate mls - asr \ncd ~/edin - mls - 26 - autumn/hw1 - asr \n# every   task, e.g. task   2 \nmake &&   make test2 \n./run.sh   -- cuda task1,task2 \n# all four done: the benchmark \n./run.sh   -- profile \n08 "
+  },
+  {
+    "page": 9,
+    "text": "The code you will work with \nFiles (under hw1 - asr/)   Responsibility   You \ncsrc/task1 … task4 (five files)   Your kernels: the blanks   Edit; add helpers here \ncsrc/common.cuh, asr_kernels.h   Shared helpers and the C interface   Keep as given \ncsrc/provided.cu   Finished kernels: embedding, silu_mul, \nim2col   Keep as given \nglm_asr_cuda/ops.py, model.py   The model; calls your kernels via ctypes   Keep as given \nbenchmark.py, run.sh, tests/   Timing, the transcription check, kernel tests   Keep as given \nFeel free to add any helpers, but do not change the original functions. \nKeep every given function's name and signature, including the launch_* entry points that Python calls. No cuBLAS, \ncuDNN, CUTLASS, Thrust or PyTorch inside a task. \nSubject to change. Please refer to the released codes.   09 "
+  },
+  {
+    "page": 10,
+    "text": "The baseline: the same model on PyTorch \nWhat it is \n./run.sh   -- cuda none runs every operation with PyTorch instead of \nyour kernels. Its matrix multiplies use cuBLAS, NVIDIA's tuned \nlibrary. \nWhy you run it \nFirst, to check your setup before you change any code. Then, as the \nreference your kernels are compared with. \nHow to read it \nTime: mean   ±   std of 3 runs after 1 warm - up. Per token: the time \ndivided by the 13 tokens. Accuracy: share of the expected words \nfound; PASS above 80%. \n./run.sh   -- cuda none (RTX 2080 Ti) \nTime:   992.9   ms   per \ntranscription   (+/ -   4.8   ms), \n76.4   ms   per   token \nPeak   GPU   memory:   8.88   GiB \nTranscription:   Concord \nreturned   to   its   place \namidst   the   tents. \nAccuracy:   100.0% \nStatus:   PASS \nTimes differ a lot between GPU types: run the baseline on the same kind of GPU as your benchmark.   10 "
+  },
+  {
+    "page": 11,
+    "text": "The tests and the benchmark \nCommand   What it runs   What it tells you \nmake test \n(or make test1 … test4) \nEach kernel on the model's shapes, \nagainst a CPU version \nPASS or FAIL per case; time, and GB/s \nor GFLOP/s \n./run.sh   -- cuda task1,task2   The model with only these tasks on your \nkernels   Whether the transcription still passes \n./run.sh   -- profile   The model on all your kernels, plus one \nprofiled transcription \nTime per transcription, GPU time per \noperation \n./run.sh   -- cuda none   -- profile   The same on PyTorch   The baseline's GPU time per operation \nsbatch run_asr.sbatch   make test and ./run.sh   -- profile as one \nbatch job   Both outputs, in asr - JOB_ID.out \nThe profile table:   one line per operation, with where it ran (cuda = your kernel, torch = PyTorch), its calls, total ms and \nshare of the GPU time. \nSubject to change. Please refer to the released codes.   11 "
+  },
+  {
+    "page": 12,
+    "text": "What you must compare, at least \nComparison   How   Report \nCorrectness   make test; ./run.sh   Every case PASS; transcription Status: \nPASS \nYour kernels vs PyTorch   ./run.sh   -- profile vs \n./run.sh   -- cuda none   -- profile \nms per transcription and per token, \npeak memory, time per operation \nYour GEMM vs naive vs \ncuBLAS   make test3 prints all three   GFLOP/s per case, and why cuBLAS is \nfaster \nMemory - bound kernels   make test1, make test2   GB/s as a share of the GPU's peak \nOne “Try this” per task   Change one thing (e.g. TILE, \nATTN_WARPS), re - run the test   Numbers before and after, and why \nUse the same kind of GPU for every number you compare (pin it with   -- gres) and report nvidia - smi   - L.   12 "
+  },
+  {
+    "page": 13,
+    "text": "What to hand in \nCode   The five task files from csrc/, with any helpers you added in \nthem. \nOutput   make test and ./run.sh   -- profile from the same GPU node, \nand nvidia - smi   - L. \nReport   Answers to the questions at the end of each guide, and at \nleast one “Try this” experiment per task: the change, the \nnumbers and your explanation. \nSubject to change. Please refer to the released codes.   13 "
+  },
+  {
+    "page": 14,
+    "text": "INFR11269 MACHINE LEARNING SYSTEMS \nCoursework: \nRAG and systems \ninvestigation \nThe pipeline, experiments and report \n2026/27 "
+  },
+  {
+    "page": 15,
+    "text": "The coursework task \n1. Common baseline   Understand the complete audio - to - answer workflow. \n2. Technical \ninvestigation \nChange a component to answer a precise systems question. \n3. Experimental \nevidence \nCompare quality with a relevant cost, using controlled \nconditions. \n4. Report   Explain the method, results, trade - offs and limitations. \n02 "
+  },
+  {
+    "page": 16,
+    "text": "The common pipeline \nStage   Main operation   Output \n1 ASR interface   Transcribe the audio query   Transcript \n2 Local encoder   Encode the transcript with   enc_a   Query vector \n3 Exact retrieval   Rank corpus vectors by similarity   Top - k record IDs \n4 Context builder   Fetch text and construct the prompt   Evidence + question \n5 ELM generator   Generate an answer from the prompt   Answer + timings \n03 "
+  },
+  {
+    "page": 17,
+    "text": "A small RAG example \nFictional example. \nWhich shop is \nopen after 6 pm? \nA: Maple Books \nopens at 9 am and \ncloses at 8 pm. \nB: River Stationery \nopens at 9 am and \ncloses at 5 pm. \nMaple Books is \nopen after 6 pm, \naccording to \nRecord A. \nA: Maple Books \nopens at 9 am and \ncloses at 8 pm.   ? \n04 "
+  },
+  {
+    "page": 18,
+    "text": "The code you will work with \nFiles (under rag/)   Responsibility \nsrc/data.py + src/encoder.py   Corpus access and local query encoding \nsrc/retriever.py   Exact dense retrieval \nsrc/context_builder.py + src/generator.py   Evidence assembly and ELM generation \nsrc/rag.py   Pipeline orchestration and timings \nscripts/   Run queries and evaluate experiments \nextensions/   Optional place to put your additional codes \nSubject to change. Please refer to the released codes. \n05 "
+  },
+  {
+    "page": 19,
+    "text": "Embeddings and exact retrieval \nCorpus matrix   24,000 records   ×   384 dimensions \nSimilarity   Normalised query and corpus vectors use a dot product. \nID mapping   Each vector row maps to a corpus record ID. \nenc_a   and   enc_b   Matching dimensions do not imply matching vector spaces. \n06 "
+  },
+  {
+    "page": 20,
+    "text": "Context construction and generation \nQuestion: <ASR transcript> \nEvidence: \n[Document 1] <retrieved text> \n[Document 2] <retrieved text> \nThe baseline asks the model to use the evidence and acknowledge insufficient support. \n07 "
+  },
+  {
+    "page": 21,
+    "text": "Get your ELM API key \nWe will need one ELM API key to run the codes. \nGo to   https://elm.edina.ac.uk/elm   using your university account and request an API key (if you don’t \nhave one already). \n08 "
+  },
+  {
+    "page": 22,
+    "text": "Get your ELM API key \nYou’ll need to write about your intended use when requesting a key. Here’s an example: \nI am taking INFR11269 Machine Learning Systems at the University of Edinburgh. I will use my ELM API key for the course’s ret rie val - \naugmented generation (RAG) coursework and related systems experiments. \nI intend to use the OpenAI - compatible Chat Completions endpoint (/chat/completions) through https://elm.edina.ac.uk/api/v1. Requ ests will \nsupport two activities: generating answers from retrieved coursework documents, and evaluating candidate answers for correctn ess , grounding \nand completeness. \nThe workflow starts with course - provided benchmark audio. Speech recognition runs locally; ELM requests contain the resulting te xt transcript, \nselected documents from the supplied course corpus and, for evaluation, candidate answers. I do not intend to upload raw audi   o,   confidential \nuniversity information, credentials or personal student records. Public source text may still contain personal references or   sen sitive topics, so I \nwill review the data I submit and follow the course’s data - use guidance. \nI will keep my key in a local environment variable or an excluded .env file, and will not include it in shared code, reposito rie s, reports or prompts. \nI will limit requests to coursework experiments, use caching where appropriate, monitor usage and avoid unnecessary repeated   cal ls. I will treat \ngenerated answers and automated evaluation scores as fallible, inspect representative outputs and acknowledge my use of AI in   ac cordance \nwith the course’s academic - integrity requirements. \nPlease pay attention: you must follow the ELM rules! We won’t take responsibility if there is any \nmisconduct. \n09 "
+  },
+  {
+    "page": 23,
+    "text": "Get your ELM API key \nELM provides numerous models. \nThere are four locally - hosted models \nwhich are free to use. We recommend \nyou use one of them. (The codes use \none of them as default; no need to \nchange it.) \nSimply switching models does NOT \ncount as a technical point. \nDo not share your key with others or \nAI! \n10 "
+  },
+  {
+    "page": 24,
+    "text": "The supplied data \nAsset   Purpose \ncorpus.jsonl   24,000 records with record IDs and text \naudio/practice + audio/dev   350 practice and 125 development queries \nstudent_audio_manifest.jsonl   Query IDs, split and audio paths \nqrels_practice.tsv   +   qrels_dev.tsv   Public relevance judgements \nembeddings/ + models/ enc_a /   Corpus representations and baseline encoder \nSubject to change. Please refer to the released codes. \n11 "
+  },
+  {
+    "page": 25,
+    "text": "The run and evaluation workflow \nStep   Command - line entry point \nCheck setup   python scripts/check_setup.py \nInspect one query   python scripts/run_audio_query.py   -- audio <WAV path> \nMeasure retrieval   python scripts/evaluate_rag.py   -- split practice \nGenerate candidates   python scripts/generate_answers.py   -- split practice   -- output <JSONL> \nValidate / judge answers   python scripts/evaluate_answers.py   -- split practice   -- candidates <JSONL>   - \n- dry - run \nASR integration and ELM configuration are prerequisites for the complete workflow. \nSubject to change. Please refer to the released codes.   12 "
+  },
+  {
+    "page": 26,
+    "text": "Retrieval quality measures \nMeasure   What it captures \nRecall@k   Fraction of relevant records found in the first k results \nMRR@10   Rank of the first relevant result, within the cutoff \nNDCG@10   Ranking quality with relevance gains and rank discount \nToy example:   Two relevant records, one in top five: Recall@5 = 0.5 \nRetrieval quality and final answer quality measure different stages. \n13 "
+  },
+  {
+    "page": 27,
+    "text": "Answer evaluation   –   an evaluation aid \nDimension   Scale   Focus \nCorrectness   0 – 4   Factual and logical accuracy \nGrounding   0 – 4   Support from relevant evidence \nCompleteness   0 – 4   Coverage of the answerable question \nCombined score   0 – 1   Sum of the three scores divided by 12 \nPublic judging uses the ASR transcript. It cannot verify that ASR preserved the intended question. \nUse this as an evaluation aid only, since this is purely generated by LLM. \n14 "
+  },
+  {
+    "page": 28,
+    "text": "A fair systems experiment \nComparison   State the baseline, intervention and expected trade - off. \nControls   Keep inputs and unrelated model settings consistent. \nMeasurements   Measure quality and the cost relevant to your question. \nReproducibility   Describe timing boundaries, hardware, repeats and caches. \nHow to find a good extension problem? \n15 "
+  },
+  {
+    "page": 29,
+    "text": "Example of extension: retrieval depth \nDesign choice   Experiment plan \nVariable   k = 2, 5, 10, 20 (baseline k = 5) \nControls   Same transcripts, encoder, corpus and generator settings \nQuality   Recall@k   and answer correctness / grounding / completeness \nCost   Context size and generation latency \nAnalysis   When does extra evidence help, and when does it add noise? \n16 "
+  },
+  {
+    "page": 30,
+    "text": "Other directions for investigation \nDirection   Possible question \nBatching   How does batch size affect throughput and query latency? \nContext selection   Can an evidence budget preserve quality with smaller prompts? \nReranking   Does better evidence justify the additional stage cost? \nDynamic updates   What is the cost of keeping the retrieval index consistent? \nRepresentation migration   How can a system transition between compatible representations? \n17 \nYou can also choose ASR optimisations as extensions. "
+  },
+  {
+    "page": 31,
+    "text": "The report’s chain of reasoning \nPart of the argument   What the reader needs \nQuestion   A precise problem and a reason it matters \nMethod   Baseline, technical change and comparison controls \nEvidence   Quality and cost results that address the question \nInterpretation   Why the behaviour occurs and which trade - off it reveals \nLimitations   Conditions where the conclusion may not hold \n18 "
+  },
+  {
+    "page": 32,
+    "text": "Report format \nCurrent guidance   Status \nTemplate and style   Use the supplied LaTeX template and preserve its format \nSection structure   Recommended headings are flexible \nReferences and Appendix   Excluded from the configured main - body page limit \nMain - body page limit   6 pages \nAppendices and declaration pages   Final course policy requires confirmation \nSubject to change. Please refer to the released codes. \n19 "
+  }
+]
