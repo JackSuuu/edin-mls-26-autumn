@@ -1,0 +1,49 @@
+{
+  "questions": 350,
+  "zeros": 121,
+  "coverage": {
+    "full": {
+      "questions": 131,
+      "zeros": 30
+    },
+    "none": {
+      "questions": 104,
+      "zeros": 62
+    },
+    "partial": {
+      "questions": 115,
+      "zeros": 29
+    }
+  },
+  "zero_pool_status": {
+    "gold_in_pool_but_none_selected": 30,
+    "some_gold_selected": 59,
+    "no_gold_in_pool100": 32
+  },
+  "zeros_with_refusal_phrase_flag_not_manual_diagnosis": 4,
+  "zero_input_tokens": {
+    "min": 416,
+    "max": 2500,
+    "mean": 1249.0578512396694
+  },
+  "zero_finish_reasons": {
+    "stop": 121
+  },
+  "zero_selected_text_truncated": 0,
+  "zero_first_gold_position": {
+    "6-10": 12,
+    "1-5": 59,
+    "absent": 32,
+    "11-20": 9,
+    "21-100": 9
+  },
+  "regressions_by_coverage": {
+    "none": 16,
+    "full": 13,
+    "partial": 7
+  },
+  "native_recall_changes_on_zero_questions": {
+    "improved": 2,
+    "worse": 1
+  }
+}

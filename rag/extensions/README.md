@@ -24,6 +24,13 @@ and latency separately.
   350-query paired experiment and its earlier labelled checkpoint.
 - [audit_qwen_answers.py](audit_qwen_answers.py): verify all 700 saved answers,
   judge cache keys, raw judgements, score means and paired intervals offline.
+- [diagnose_qwen_zero_answers.py](diagnose_qwen_zero_answers.py): inventory all
+  121 zero-score Qwen answers with candidate-pool coverage, selected/gold texts
+  and paired dense scores. The [diagnosis](../experiments/qwen4-zero-score-diagnosis.md)
+  separates reproducible observations from source-review findings and untested fixes.
+- [explore_qwen_selection_controls.py](explore_qwen_selection_controls.py): compare
+  fixed dense/Qwen rank-fusion and dense-anchor controls using saved rankings,
+  without model calls. These are retrieval-only exploratory results.
 - [run_qwen_dev_validation.py](run_qwen_dev_validation.py): explicitly authorized
   frozen 4B matched/dev validation with fresh dense/Qwen answers, staged smoke
   checks, run locking, source/input snapshots and offline audits. The completed

@@ -158,6 +158,11 @@ Full data: [comparison](../results/qwen4-answers-3724290/comparison.json),
 
 ### Follow-up: reduce zero-score failures
 
+The [offline zero-score diagnosis](qwen4-zero-score-diagnosis.md) inventories all
+121 cases, separates candidate-pool and top-5 coverage failures, and records
+source-checked examples of evidence misuse, judge errors and question/reference
+gaps. It proposes controlled tests; no further answer-score gain has been measured.
+
 The absolute gains of 0.160 to 0.200 points on the 0-to-4 dimensions are modest.
 The paired intervals support an improvement under this protocol, while the
 remaining 121 all-zero answers and the additional reranking cost limit its
