@@ -1,0 +1,368 @@
+{
+  "source_path": "report/latex_template/figures/ASR_RAG_System_Architecture_No_Title.svg",
+  "source_sha256": "e82f1daafcd5163faf46cce7f481f590715f4b22bfc47ca4ac539eaa6828faa8",
+  "script_sha256": "4c49d585b64fc776cd6a8aa44bf49d5d9c9b7e703ead7cef691bb4adbbe8eeae",
+  "pdf_path": "report/latex_template/figures/architecture-report.pdf",
+  "pdf_sha256": "7cc661f2a4f08159e37309f5010827a40932a9adca295c607389020677c4170a",
+  "png_path": "report/latex_template/figures/architecture-report.png",
+  "png_sha256": "fb3dec35b120b2bef1bb8e8edcb0319d64f353ce5e317daa76b1af2615e2cfd3",
+  "original_svg_modified": false,
+  "minimum_font_size_pt_at_396pt_report_width": 6.93,
+  "adaptation": "Two-row reflow and abbreviated labels using the supplied palette/components; explicit corpus and ranking-evaluation links from implementation; timing caveat in caption.",
+  "nodes": [
+    [
+      "audio",
+      [
+        8,
+        10,
+        66,
+        64
+      ],
+      "Audio",
+      [
+        "Spoken",
+        "question"
+      ],
+      "blue"
+    ],
+    [
+      "asr",
+      [
+        79,
+        10,
+        181,
+        64
+      ],
+      "GLM-ASR",
+      [
+        "PyTorch / CUDA",
+        "GPU kernels"
+      ],
+      "blue"
+    ],
+    [
+      "cache",
+      [
+        194,
+        10,
+        296,
+        64
+      ],
+      "Transcript cache",
+      [
+        "Saved transcript",
+        "Fixed RAG input"
+      ],
+      "blue"
+    ],
+    [
+      "encoding",
+      [
+        309,
+        10,
+        411,
+        64
+      ],
+      "Query encoding",
+      [
+        "enc_a",
+        "CPU"
+      ],
+      "blue"
+    ],
+    [
+      "dense",
+      [
+        424,
+        10,
+        588,
+        64
+      ],
+      "Dense search / cache",
+      [
+        "CPU cosine / top-100",
+        "Candidate IDs reused"
+      ],
+      "blue"
+    ],
+    [
+      "qrels",
+      [
+        8,
+        80,
+        145,
+        116
+      ],
+      "Qrels / references",
+      [
+        "Offline evaluation only"
+      ],
+      "purple"
+    ],
+    [
+      "corpus",
+      [
+        405,
+        80,
+        588,
+        116
+      ],
+      "Corpus + embeddings",
+      [
+        "24,000 records + full text"
+      ],
+      "purple"
+    ],
+    [
+      "eval",
+      [
+        8,
+        132,
+        145,
+        184
+      ],
+      "Offline evaluation",
+      [
+        "Metrics / LLM judge",
+        "EuroLLM via ELM"
+      ],
+      "red"
+    ],
+    [
+      "gen",
+      [
+        160,
+        132,
+        290,
+        184
+      ],
+      "Answer generation",
+      [
+        "EuroLLM via ELM",
+        "Generated answer"
+      ],
+      "blue"
+    ],
+    [
+      "context",
+      [
+        305,
+        132,
+        435,
+        184
+      ],
+      "Context builder",
+      [
+        "Full / budgeted text",
+        "Fixed prompt"
+      ],
+      "blue"
+    ],
+    [
+      "selection",
+      [
+        450,
+        132,
+        588,
+        184
+      ],
+      "Evidence selection",
+      [
+        "MiniLM / Qwen (GPU)",
+        "Dense / top-k / budget"
+      ],
+      "orange"
+    ]
+  ],
+  "edges": [
+    [
+      [
+        [
+          66,
+          37
+        ],
+        [
+          79,
+          37
+        ]
+      ],
+      false
+    ],
+    [
+      [
+        [
+          181,
+          37
+        ],
+        [
+          194,
+          37
+        ]
+      ],
+      false
+    ],
+    [
+      [
+        [
+          296,
+          37
+        ],
+        [
+          309,
+          37
+        ]
+      ],
+      false
+    ],
+    [
+      [
+        [
+          411,
+          37
+        ],
+        [
+          424,
+          37
+        ]
+      ],
+      false
+    ],
+    [
+      [
+        [
+          588,
+          37
+        ],
+        [
+          597,
+          37
+        ],
+        [
+          597,
+          158
+        ],
+        [
+          588,
+          158
+        ]
+      ],
+      false
+    ],
+    [
+      [
+        [
+          488,
+          80
+        ],
+        [
+          488,
+          64
+        ]
+      ],
+      false
+    ],
+    [
+      [
+        [
+          552,
+          116
+        ],
+        [
+          552,
+          132
+        ]
+      ],
+      false
+    ],
+    [
+      [
+        [
+          405,
+          99
+        ],
+        [
+          370,
+          99
+        ],
+        [
+          370,
+          132
+        ]
+      ],
+      false
+    ],
+    [
+      [
+        [
+          450,
+          158
+        ],
+        [
+          435,
+          158
+        ]
+      ],
+      false
+    ],
+    [
+      [
+        [
+          305,
+          158
+        ],
+        [
+          290,
+          158
+        ]
+      ],
+      false
+    ],
+    [
+      [
+        [
+          160,
+          158
+        ],
+        [
+          145,
+          158
+        ]
+      ],
+      true
+    ],
+    [
+      [
+        [
+          76,
+          116
+        ],
+        [
+          76,
+          132
+        ]
+      ],
+      true
+    ],
+    [
+      [
+        [
+          520,
+          184
+        ],
+        [
+          520,
+          197
+        ],
+        [
+          132,
+          197
+        ],
+        [
+          132,
+          184
+        ]
+      ],
+      true
+    ]
+  ]
+}

@@ -1,0 +1,381 @@
+{
+  "nodes": [
+    {
+      "id": "asr",
+      "box": [
+        12,
+        32,
+        145,
+        92
+      ],
+      "role": "gpu",
+      "title": "GLM-ASR",
+      "lines": [
+        "PyTorch / CUDA",
+        "GPU kernel choices"
+      ]
+    },
+    {
+      "id": "transcripts",
+      "box": [
+        165,
+        32,
+        290,
+        92
+      ],
+      "role": "cache",
+      "title": "Transcript cache",
+      "lines": [
+        "Fixed for RAG arms",
+        "ASR reused, not timed"
+      ]
+    },
+    {
+      "id": "embedding",
+      "box": [
+        310,
+        32,
+        435,
+        92
+      ],
+      "role": "local",
+      "title": "Query encoding",
+      "lines": [
+        "enc_a on CPU",
+        "Query embedding"
+      ]
+    },
+    {
+      "id": "dense",
+      "box": [
+        455,
+        32,
+        588,
+        92
+      ],
+      "role": "cache",
+      "title": "Dense search/cache",
+      "lines": [
+        "CPU cosine / top-100",
+        "Query + candidate IDs"
+      ]
+    },
+    {
+      "id": "qrels",
+      "box": [
+        12,
+        114,
+        145,
+        153
+      ],
+      "role": "evaluation",
+      "title": "Qrels / references",
+      "lines": [
+        "Public relevance labels",
+        "Offline evaluation only"
+      ]
+    },
+    {
+      "id": "corpus",
+      "box": [
+        455,
+        114,
+        588,
+        153
+      ],
+      "role": "asset",
+      "title": "Corpus + embeddings",
+      "lines": [
+        "24,000 records",
+        "enc_a vectors + full text"
+      ]
+    },
+    {
+      "id": "selector",
+      "box": [
+        455,
+        176,
+        588,
+        238
+      ],
+      "role": "selection",
+      "title": "Evidence selection",
+      "lines": [
+        "MiniLM / Qwen (GPU)",
+        "Dense / top-k / budget"
+      ]
+    },
+    {
+      "id": "context",
+      "box": [
+        310,
+        176,
+        435,
+        238
+      ],
+      "role": "local",
+      "title": "Context builder",
+      "lines": [
+        "Full / budgeted text",
+        "Fixed evidence prompt"
+      ]
+    },
+    {
+      "id": "generator",
+      "box": [
+        165,
+        176,
+        290,
+        238
+      ],
+      "role": "remote",
+      "title": "Answer generation",
+      "lines": [
+        "EuroLLM via ELM",
+        "Generated answer"
+      ]
+    },
+    {
+      "id": "judge",
+      "box": [
+        12,
+        176,
+        145,
+        238
+      ],
+      "role": "evaluation",
+      "title": "Offline evaluation",
+      "lines": [
+        "Qrel metrics / judge",
+        "EuroLLM + paired CIs"
+      ]
+    }
+  ],
+  "edges": [
+    {
+      "from": "asr",
+      "to": "transcripts",
+      "points": [
+        [
+          145,
+          62
+        ],
+        [
+          165,
+          62
+        ]
+      ],
+      "kind": "online"
+    },
+    {
+      "from": "transcripts",
+      "to": "embedding",
+      "points": [
+        [
+          290,
+          62
+        ],
+        [
+          310,
+          62
+        ]
+      ],
+      "kind": "online"
+    },
+    {
+      "from": "embedding",
+      "to": "dense",
+      "points": [
+        [
+          435,
+          62
+        ],
+        [
+          455,
+          62
+        ]
+      ],
+      "kind": "online"
+    },
+    {
+      "from": "dense",
+      "to": "selector",
+      "points": [
+        [
+          588,
+          62
+        ],
+        [
+          597,
+          62
+        ],
+        [
+          597,
+          207
+        ],
+        [
+          588,
+          207
+        ]
+      ],
+      "kind": "online"
+    },
+    {
+      "from": "corpus",
+      "to": "dense",
+      "points": [
+        [
+          477,
+          114
+        ],
+        [
+          477,
+          92
+        ]
+      ],
+      "kind": "online"
+    },
+    {
+      "from": "corpus",
+      "to": "selector",
+      "points": [
+        [
+          565,
+          153
+        ],
+        [
+          565,
+          176
+        ]
+      ],
+      "kind": "online"
+    },
+    {
+      "from": "corpus",
+      "to": "context",
+      "points": [
+        [
+          455,
+          134
+        ],
+        [
+          372,
+          134
+        ],
+        [
+          372,
+          176
+        ]
+      ],
+      "kind": "online"
+    },
+    {
+      "from": "selector",
+      "to": "context",
+      "points": [
+        [
+          455,
+          207
+        ],
+        [
+          435,
+          207
+        ]
+      ],
+      "kind": "online"
+    },
+    {
+      "from": "context",
+      "to": "generator",
+      "points": [
+        [
+          310,
+          207
+        ],
+        [
+          290,
+          207
+        ]
+      ],
+      "kind": "online"
+    },
+    {
+      "from": "generator",
+      "to": "judge",
+      "points": [
+        [
+          165,
+          207
+        ],
+        [
+          145,
+          207
+        ]
+      ],
+      "kind": "evaluation"
+    },
+    {
+      "from": "qrels",
+      "to": "judge",
+      "points": [
+        [
+          78,
+          153
+        ],
+        [
+          78,
+          176
+        ]
+      ],
+      "kind": "evaluation"
+    },
+    {
+      "from": "selector",
+      "to": "judge",
+      "points": [
+        [
+          520,
+          238
+        ],
+        [
+          520,
+          262
+        ],
+        [
+          138,
+          262
+        ],
+        [
+          138,
+          238
+        ]
+      ],
+      "kind": "evaluation"
+    }
+  ],
+  "source_sha256": {
+    "hw1-asr/glm_asr_cuda/ops.py": "de224fee6464b5d3288297a7d0ea2eb66e9206d95bea59586349d2979290e906",
+    "rag/src/asr_adapter.py": "845a4b343530ea780e32057fba16a1d14566375011a911535e70dfda24721e2a",
+    "rag/src/encoder.py": "198d947472f6c7d213d49d52cbbb4f68cb527a53fc395ba1d77f32063f84e5ca",
+    "rag/src/retriever.py": "5e3b9f5659199662b64afd5fdcda8e95eef9a041eeca7a0db3e344f678334328",
+    "rag/src/context_builder.py": "4703c7d182f9b0841c8296e2e9c054adf48e29127be80f8857809b1cab2b4338",
+    "rag/src/generator.py": "fc132164be32af51ba713a7b94bbd8829693bd96353d13e2c239cae29a21ff5c",
+    "rag/src/evaluation/answer_judge.py": "09954f9665e4db95787f17bbe7769f4901f1fff3e70047e1e80e261966cf2525",
+    "rag/src/metrics.py": "330dae0c2e68d485e601bdbf0890051caa71fb358b6d26fb9e0cfc1cc2e04470",
+    "rag/extensions/evaluate_qwen_reranker.py": "d7961e3f472fac454ba2db69d6feed87a8075b448dc2918cc65df1f869dbf224",
+    "rag/extensions/evidence_selection.py": "880e9138bcfa5d2de2e96eb3f5f4c568072b6901f0dcb37c8bd5ff6fbea25e94",
+    "rag/extensions/run_qwen_answer_experiment.py": "fd6cdf69752e5ad0dc5442b106c32a9c2a36ce109bc32519166a61a65e96d152",
+    "rag/results/qwen4-dev-validation-20261117-v1/protocol.json": "85a2f833466b073e4ed97700c7224a62715d3412c852f3a00d385b063de94c39"
+  },
+  "diagram_source_sha256": "150cb19788aa17a7f9e6adf83c012fa53f0d7f4f5bce043d766cac26c5fc7b41",
+  "figure_path": "report/latex_template/figures/system-architecture.pdf",
+  "figure_sha256": "c86180eddbac5cbfd529ca6cead6c0de6c0bc7988956bc4c9f97698866857079",
+  "preview_path": "report/latex_template/figures/system-architecture.png",
+  "preview_sha256": "dfc232e3619b5cc981edd0e3e119eb982b040ac4781a949fa7439139f8b0ab24",
+  "scope": "Conceptual pipeline; evidence-selection runs reuse transcript/candidate caches",
+  "not_claimed": [
+    "Measured audio-to-answer timing",
+    "Qrels used for evidence selection",
+    "Judge feedback used to tune the frozen dev configuration"
+  ]
+}

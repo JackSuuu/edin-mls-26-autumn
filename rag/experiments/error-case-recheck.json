@@ -1,0 +1,40 @@
+{
+  "reviewer": "OpenAI coding assistant; second unblinded source check, not independent human review",
+  "author_confirmation_outstanding": true,
+  "scores_changed": false,
+  "cases": [
+    {
+      "query_id": "q_371c6ca10bf1bf5e",
+      "finding": "The retrieved company-tax text assigns carry-forward/offset to a tax loss. The answer assigns it to pension contribution limits. This directly supports a scope/subject substitution observation without needing to adjudicate Irish tax law. It does not prove removing that document would correct the answer.",
+      "quotes": [
+        {"source": "selected", "record_id": "r_dc4b5d2c6048003d", "quote": "there will be a tax loss that can be carried forward and offset against future profits"},
+        {"source": "answer", "quote": "There are maximum contribution limits, but these can be carried forward and offset against future profits"}
+      ]
+    },
+    {
+      "query_id": "q_e16177bbeb991130",
+      "finding": "The gold document names MetaStock, Incredible Charts and VectorVest and the answer covers all three. Extra software recommendations have retrieved support but not necessarily gold support. The judge's Bloomberg sentence is internally contradictory and misattributes selected-only wording to gold. This flags the explanation and score calibration, not a demonstrated fully correct answer or a replacement score.",
+      "quotes": [
+        {"source": "gold", "record_id": "r_cf9b8dde8f26ee05", "quote": "I used to use MetaStock Trader"},
+        {"source": "gold", "record_id": "r_cf9b8dde8f26ee05", "quote": "I currently use Incredible Charts"},
+        {"source": "gold", "record_id": "r_cf9b8dde8f26ee05", "quote": "I'm looking at VectorVest"},
+        {"source": "answer", "quote": "2. MetaStock Trader"},
+        {"source": "answer", "quote": "3. Incredible Charts"},
+        {"source": "answer", "quote": "4. VectorVest"},
+        {"source": "selected", "record_id": "r_5c371e52b3288173", "quote": "It provides any kind of data you can imagine."},
+        {"source": "judge", "quote": "The gold evidence only mentions that Bloomberg Professional provides any kind of data you can imagine"}
+      ]
+    },
+    {
+      "query_id": "q_e86dfaec0aa23a50",
+      "finding": "Two findings coexist: the answer transfers gold/silver usefulness into the crisis despite gold saying after, while the judge denies helicopters and connections that are present in gold. A judge-explanation error therefore does not vindicate the whole answer. No score was changed.",
+      "quotes": [
+        {"source": "gold", "record_id": "r_bb78de160a91c5cd", "quote": "Gold and silver are for after the crisis, not during."},
+        {"source": "answer", "quote": "they can be exchanged for necessary items during the crisis"},
+        {"source": "gold", "record_id": "r_9ab98c1b831ede78", "quote": "I'd prefer an ultralight helicopter."},
+        {"source": "gold", "record_id": "r_8aaa1b0a0e0c599a", "quote": "connections will likely also be important"},
+        {"source": "judge", "quote": "the mention of helicopters, gasoline"}
+      ]
+    }
+  ]
+}

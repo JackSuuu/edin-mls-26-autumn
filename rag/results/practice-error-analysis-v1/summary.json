@@ -1,0 +1,226 @@
+{
+  "schema": "practice-error-analysis-v1",
+  "seed": 20261118,
+  "sample_size": 20,
+  "sampling": "Uniform without replacement from sorted Qwen practice all-zero judge IDs",
+  "eligible_queries": 121,
+  "sampled_query_ids": [
+    "q_071078c6a43f6ed1",
+    "q_0a12138b81eb7e2a",
+    "q_1024d33a7dfa33ef",
+    "q_32480a484879c3ec",
+    "q_371c6ca10bf1bf5e",
+    "q_3bd06eaf675d1a65",
+    "q_3d50f31d4e5c576c",
+    "q_528e698db2500a86",
+    "q_591325342f8c340f",
+    "q_66bb08d4774227f7",
+    "q_7fb7c14235f8ec06",
+    "q_8f81a59b842b2036",
+    "q_b7bd4791c356567a",
+    "q_bc1c349d33c5f4b0",
+    "q_c3dad6ee3fe9e058",
+    "q_c5a5320bcfd3a373",
+    "q_ce474d8f8d548797",
+    "q_e16177bbeb991130",
+    "q_e86dfaec0aa23a50",
+    "q_f76c520706cfe2c3"
+  ],
+  "population": {
+    "dense5": {
+      "queries": 350,
+      "all_zero": 138,
+      "zero_by_qrel_coverage": {
+        "full": 19,
+        "none": 90,
+        "partial": 29
+      },
+      "dimension_zero_counts": {
+        "correctness": 138,
+        "grounding": 138,
+        "completeness": 138
+      },
+      "mixed_zero_dimension_answers": 0,
+      "empty_answers": 0,
+      "finish_reasons": {
+        "stop": 350
+      },
+      "all_scores_match_cached_and_raw_judge_responses": true
+    },
+    "qwen4_matched5": {
+      "queries": 350,
+      "all_zero": 121,
+      "zero_by_qrel_coverage": {
+        "full": 30,
+        "none": 62,
+        "partial": 29
+      },
+      "dimension_zero_counts": {
+        "correctness": 121,
+        "grounding": 121,
+        "completeness": 121
+      },
+      "mixed_zero_dimension_answers": 0,
+      "empty_answers": 0,
+      "finish_reasons": {
+        "stop": 350
+      },
+      "all_scores_match_cached_and_raw_judge_responses": true
+    }
+  },
+  "paired_score_states": {
+    "zero_zero": 85,
+    "zero_positive": 53,
+    "positive_zero": 36,
+    "positive_positive": 176
+  },
+  "judge_zero_template_risk": {
+    "source_matches_frozen_run_modulo_lf_crlf": true,
+    "schema_literal_present": true,
+    "interpretation": "Possible formatting/anchoring risk, not a measured causal explanation; no rejudging."
+  },
+  "sample_qrel_coverage": {
+    "none": 13,
+    "full": 5,
+    "partial": 2
+  },
+  "all_700_saved_prompts_match_full_corpus_text": true,
+  "all_700_prompt_hashes_match": true,
+  "corpus_sha256": "2c83ce85867aa3ca100ab58698f22138bc0012d944cd22ad4305d12a25c25ac5",
+  "practice_qrels_sha256": "063dbbaa9ca522fd6ab74df6b1f9c7c6e568d383fc56d8cb83eb8f0a75a620c8",
+  "source_sha256": {
+    "rag/results/qwen4-answers-3724290/config.json": "0350971c7297c67df5ea2bd194f186eda4cb93fcb88d9636a125934d9cb05ca2",
+    "rag/src/evaluation/answer_judge.py": "09954f9665e4db95787f17bbe7769f4901f1fff3e70047e1e80e261966cf2525",
+    "rag/results/qwen4-answers-3724290/answers/dense5.jsonl": "4414aa1a598d6b4d081e73b3f6cfd30e62c67a25f83f49857bb9f5fd4b33cc71",
+    "rag/results/qwen4-answers-3724290/judge_json_dense5/answer_judge_per_query.jsonl": "e6d470a7e0110c400c6d4de048cca2a1fcf9810da546c7f200fed1ab72672443",
+    "rag/results/qwen4-answers-3724290/answers/qwen4_matched5.jsonl": "c092b1ef21353eb95653eb0d58cac54b4ec55181bfb9b04d383c6ccb628722bc",
+    "rag/results/qwen4-answers-3724290/judge_json_qwen4_matched5/answer_judge_per_query.jsonl": "eed4a135564b53a64fc99a34c72ae8e601c6cd45590452b3b2c6adff1dffa6db",
+    "rag/results/qwen4-answers-3724290/judge_json_dense5/judge_cache.jsonl": "0c5a549327b1a71037fc64a82d0c7354da9786fc1cb46edcd81b68033932ef24",
+    "rag/results/qwen4-answers-3724290/judge_json_dense5/judge_raw.jsonl": "924ccda2d8318b3d5c96bcf9e02733005108652c7d225e148f9ab7a1b0df687e",
+    "rag/results/qwen4-answers-3724290/judge_json_qwen4_matched5/judge_cache.jsonl": "881cdeaeb650e68a6c23d32d8d40c952af2b3adde99b027131fd9560b0d49853",
+    "rag/results/qwen4-answers-3724290/judge_json_qwen4_matched5/judge_raw.jsonl": "65cdc2a9d34d0988906d4f857d760509a9175f7972ea1f57f7888e45caeece43",
+    "rag/experiments/practice-error-analysis-v1.json": "d4adfde6242bef6602669ec02b392bdaa86a3b9c9baaccc2617346e047aa9c2d",
+    "rag/experiments/error-case-recheck.json": "886b6955489db7e7d8c60d4df51fd4a13d002ed44da88d1e3c98a9cc148b9b66"
+  },
+  "script_sha256": "19f29f04cb39256ac37f9e6cb688ead253aa17e629801fde31615fabf14f0a55",
+  "qualitative_tags_nonexclusive": {
+    "condition_omission": 3,
+    "entity_recognition_gap": 1,
+    "judge_text_conflict": 6,
+    "jurisdiction_scope_blending": 1,
+    "off_topic_detail": 2,
+    "query_ambiguity": 1,
+    "query_reference_mismatch": 4,
+    "reasoning_mismatch": 1,
+    "reference_point_omission": 2,
+    "reference_scope_mismatch": 9,
+    "reference_specificity_gap": 2,
+    "risk_caveat_omission": 1,
+    "snippet_candidate": 3,
+    "source_quality_risk": 1,
+    "topic_substitution": 3
+  },
+  "reviewer": "OpenAI coding assistant; unblinded exploratory review, not independent human adjudication",
+  "review_quotations_verified_verbatim": true,
+  "representative_case_recheck": {
+    "reviewer": "OpenAI coding assistant; second unblinded source check, not independent human review",
+    "author_confirmation_outstanding": true,
+    "scores_changed": false,
+    "cases": [
+      {
+        "query_id": "q_371c6ca10bf1bf5e",
+        "finding": "The retrieved company-tax text assigns carry-forward/offset to a tax loss. The answer assigns it to pension contribution limits. This directly supports a scope/subject substitution observation without needing to adjudicate Irish tax law. It does not prove removing that document would correct the answer.",
+        "quotes": [
+          {
+            "source": "selected",
+            "record_id": "r_dc4b5d2c6048003d",
+            "quote": "there will be a tax loss that can be carried forward and offset against future profits"
+          },
+          {
+            "source": "answer",
+            "quote": "There are maximum contribution limits, but these can be carried forward and offset against future profits"
+          }
+        ]
+      },
+      {
+        "query_id": "q_e16177bbeb991130",
+        "finding": "The gold document names MetaStock, Incredible Charts and VectorVest and the answer covers all three. Extra software recommendations have retrieved support but not necessarily gold support. The judge's Bloomberg sentence is internally contradictory and misattributes selected-only wording to gold. This flags the explanation and score calibration, not a demonstrated fully correct answer or a replacement score.",
+        "quotes": [
+          {
+            "source": "gold",
+            "record_id": "r_cf9b8dde8f26ee05",
+            "quote": "I used to use MetaStock Trader"
+          },
+          {
+            "source": "gold",
+            "record_id": "r_cf9b8dde8f26ee05",
+            "quote": "I currently use Incredible Charts"
+          },
+          {
+            "source": "gold",
+            "record_id": "r_cf9b8dde8f26ee05",
+            "quote": "I'm looking at VectorVest"
+          },
+          {
+            "source": "answer",
+            "quote": "2. MetaStock Trader"
+          },
+          {
+            "source": "answer",
+            "quote": "3. Incredible Charts"
+          },
+          {
+            "source": "answer",
+            "quote": "4. VectorVest"
+          },
+          {
+            "source": "selected",
+            "record_id": "r_5c371e52b3288173",
+            "quote": "It provides any kind of data you can imagine."
+          },
+          {
+            "source": "judge",
+            "quote": "The gold evidence only mentions that Bloomberg Professional provides any kind of data you can imagine"
+          }
+        ]
+      },
+      {
+        "query_id": "q_e86dfaec0aa23a50",
+        "finding": "Two findings coexist: the answer transfers gold/silver usefulness into the crisis despite gold saying after, while the judge denies helicopters and connections that are present in gold. A judge-explanation error therefore does not vindicate the whole answer. No score was changed.",
+        "quotes": [
+          {
+            "source": "gold",
+            "record_id": "r_bb78de160a91c5cd",
+            "quote": "Gold and silver are for after the crisis, not during."
+          },
+          {
+            "source": "answer",
+            "quote": "they can be exchanged for necessary items during the crisis"
+          },
+          {
+            "source": "gold",
+            "record_id": "r_9ab98c1b831ede78",
+            "quote": "I'd prefer an ultralight helicopter."
+          },
+          {
+            "source": "gold",
+            "record_id": "r_8aaa1b0a0e0c599a",
+            "quote": "connections will likely also be important"
+          },
+          {
+            "source": "judge",
+            "quote": "the mention of helicopters, gasoline"
+          }
+        ]
+      }
+    ]
+  },
+  "limitations": [
+    "Judge-zero is a sampling label, not human-verified incorrectness.",
+    "AI-assisted unblinded qualitative review; not independent human adjudication.",
+    "Qrel coverage is document-ID coverage, not semantic evidence sufficiency.",
+    "Saved outgoing prompts do not prove what the remote server internally processed.",
+    "No snippet intervention or repeated generation/judging; no causal attribution.",
+    "Practice-only exploratory diagnostic; no new benchmark improvement claim."
+  ]
+}

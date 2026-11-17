@@ -1,0 +1,82 @@
+{
+  "split": "dev",
+  "queries": 125,
+  "arms": [
+    "dense5",
+    "qwen4_matched5"
+  ],
+  "authorization": "Explicit user authorization on 2026-11-17 for fresh dev generation/judging",
+  "qualification": "Frozen-config validation on previously inspected dev; not untouched holdout",
+  "reranker": {
+    "repo": "Qwen/Qwen3-Reranker-4B",
+    "revision": "22e683669bc0f0bd69640a1354a6d0aebcfeede5",
+    "files_sha256": {
+      "1_LogitScore/config.json": "73e3156450564d8a98b7e47bcf5aace0f29600828b51937da545571e84db3ff3",
+      "chat_template.jinja": "6f682162495ec5b39fd9005c01b6aa2a74669379fe967039f1e2cbbe8752369d",
+      "config.json": "38bff5eac700032a185745e4076eccad7aa453473cafc2a27de412cdb7b79e19",
+      "config_sentence_transformers.json": "6a153d6696f78fd588c1c728967f0b773ea869d3c6028f151ce71ebe49140762",
+      "generation_config.json": "81051cd3f6e77013827148d0b8a6ead93f8ac390d5ab805f849199f0af6a08db",
+      "merges.txt": "8831e4f1a044471340f7c0a83d7bd71306a5b867e95fd870f74d0c5308a904d5",
+      "model-00001-of-00002.safetensors": "cf2e87cbf71fa628961532232e04dd6c19702a0a057f5e2aff95ea1aca4fd488",
+      "model-00002-of-00002.safetensors": "78946d22b7f6456ea7a5358dbdf3982de36c5bac1f166a5fd58e18e31db8048a",
+      "model.safetensors.index.json": "18a783f197360068da36d2ff9ecffce0121542a87598fd1fef3079ead1c3cc08",
+      "modules.json": "6f13b6b4a89e577b591b2077bca40c67c26541a6740a8809267cb474f90806a9",
+      "sentence_bert_config.json": "3234ebd224d492cbe8d55d5ec80a3f408451c4db3005bafb64fe1c51c763e01e",
+      "special_tokens_map.json": "76862e765266b85aa9459767e33cbaf13970f327a0e88d1c65846c2ddd3a1ecd",
+      "tokenizer.json": "aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4",
+      "tokenizer_config.json": "253153d0738ceb4c668d2eff957714dd2bea0b56de772a9fdccd96cbf517e6a0",
+      "vocab.json": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910"
+    }
+  },
+  "primary_ranking": "qwen_matched",
+  "candidate_pool": 100,
+  "selected_documents": 5,
+  "batch_size": 8,
+  "qwen_dtype": "bfloat16",
+  "generator": "utter-project/EuroLLM-22B-Instruct-2512",
+  "temperature": 0.1,
+  "judge": "utter-project/EuroLLM-22B-Instruct-2512",
+  "json_mode": true,
+  "judge_repeats": 1,
+  "bootstrap": {
+    "resamples": 2000,
+    "seed": 20261116,
+    "paired": true
+  },
+  "no_score_dependent_tuning_or_stopping": true,
+  "smoke_checks": "2 queries/arm, only structural validity; no required score or performance threshold",
+  "fresh_logical_answers": 250,
+  "fresh_logical_judgements": 250,
+  "smoke_cache_reused_in_full_run": true,
+  "api_retries_may_add_requests": true,
+  "no_old_answers_or_judge_cache_reused": true,
+  "no_new_asr": true,
+  "cuda_visible_devices": "1",
+  "python": "3.11.18",
+  "python_executable": "/home/jacksu/mls-qwen-dev-env/bin/python",
+  "packages": {
+    "torch": "2.10.0+cu128",
+    "transformers": "5.0.0",
+    "numpy": "2.4.6",
+    "openai": "2.8.1",
+    "python-dotenv": "1.2.1",
+    "huggingface-hub": "1.33.0"
+  },
+  "source_sha256": {
+    "rag/extensions/run_qwen_dev_validation.py": "2268de9e7c5cc05101a2706ac7e5fddfd0de212a5d6b2b8b2ed4ab33dbf43fa6",
+    "rag/extensions/evaluate_qwen_reranker.py": "d7961e3f472fac454ba2db69d6feed87a8075b448dc2918cc65df1f869dbf224",
+    "rag/extensions/run_qwen_answer_experiment.py": "fd6cdf69752e5ad0dc5442b106c32a9c2a36ce109bc32519166a61a65e96d152",
+    "rag/extensions/evidence_selection.py": "880e9138bcfa5d2de2e96eb3f5f4c568072b6901f0dcb37c8bd5ff6fbea25e94",
+    "rag/src/generator.py": "fc132164be32af51ba713a7b94bbd8829693bd96353d13e2c239cae29a21ff5c",
+    "rag/src/metrics.py": "330dae0c2e68d485e601bdbf0890051caa71fb358b6d26fb9e0cfc1cc2e04470",
+    "rag/src/data.py": "ba9fbc49844cc3b85b0a300f18aff38b1a88d86218c90625fde2b357a76a42d7",
+    "rag/scripts/evaluate_answers.py": "e4cad3fa3642c5a304641a373b882c3f41d6d09319ff6fe362722d4096e65174",
+    "rag/src/evaluation/answer_judge.py": "09954f9665e4db95787f17bbe7769f4901f1fff3e70047e1e80e261966cf2525"
+  },
+  "input_sha256": {
+    "rag/results/bm25-compare-dev/dense_rankings.jsonl": "0b3eec883690a66e52fee4e1f9628a2014408d6a78290217fec2b04f40127e22",
+    "rag/experiments/dev125.jsonl": "f165b72b445820da76d77de75c528070bc1235d030e63d1ab2ccca5ecf6ea36f",
+    "rag/data/rag_corpus/corpus.jsonl": "2c83ce85867aa3ca100ab58698f22138bc0012d944cd22ad4305d12a25c25ac5",
+    "rag/data/rag_corpus/qrels_dev.tsv": "24e20c1fadb02650dca5529b2f5508a0896f976d12885e8384ad7c9626f37bb3"
+  }
+}

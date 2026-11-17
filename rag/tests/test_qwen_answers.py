@@ -33,6 +33,18 @@ class QwenAnswerTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             indexed([{"query_id": "q"}, {"query_id": "q"}])
 
+    def test_dev_split_propagates_without_changing_context_or_prompt(self):
+        records = {str(i): f"Document {i}" for i in range(5)}
+        row = {"query_id": "q", "transcript": "Question?",
+               "dense": {"record_ids": list(records)},
+               "qwen_matched": {"record_ids": list(records)}}
+        practice = build_plan(row, "dense5", records, len)
+        dev = build_plan(row, "dense5", records, len, split="dev")
+        self.assertEqual(practice["split"], "practice")
+        self.assertEqual(dev["split"], "dev")
+        self.assertEqual(practice["prompt"], dev["prompt"])
+        self.assertEqual(practice["prompt_sha256"], dev["prompt_sha256"])
+
 
 if __name__ == "__main__":
     unittest.main()

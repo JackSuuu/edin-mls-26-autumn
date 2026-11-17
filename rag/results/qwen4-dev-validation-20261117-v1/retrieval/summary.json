@@ -1,0 +1,101 @@
+{
+  "completed": true,
+  "queries": 125,
+  "full_split": true,
+  "arms": {
+    "dense": {
+      "Recall@5": 0.3794974358974359,
+      "Recall@10": 0.47459487179487175,
+      "Recall@20": 0.5795208791208791,
+      "Recall@100": 0.7244263736263735,
+      "MRR@10": 0.4597079365079365,
+      "NDCG@10": 0.39834243293601623
+    },
+    "qwen_matched": {
+      "Recall@5": 0.4568043956043956,
+      "Recall@10": 0.5925054945054945,
+      "Recall@20": 0.665018315018315,
+      "Recall@100": 0.7244263736263735,
+      "MRR@10": 0.543873015873016,
+      "NDCG@10": 0.48206355807292356,
+      "mean_rerank_ms": 5620.751387655735,
+      "median_rerank_ms": 5753.852745518088,
+      "p95_rerank_ms": 6256.693397834897
+    }
+  },
+  "paired_vs_dense": {
+    "qwen_matched": {
+      "Recall@5": {
+        "mean_delta": 0.07730695970695971,
+        "bootstrap_95pct_interval": [
+          0.02003362637362637,
+          0.1338521978021978
+        ],
+        "improved": 30,
+        "worse": 11,
+        "tied": 84
+      },
+      "Recall@10": {
+        "mean_delta": 0.1179106227106227,
+        "bootstrap_95pct_interval": [
+          0.06527014652014652,
+          0.1715112454212454
+        ],
+        "improved": 38,
+        "worse": 9,
+        "tied": 78
+      },
+      "Recall@20": {
+        "mean_delta": 0.08549743589743589,
+        "bootstrap_95pct_interval": [
+          0.04512010989010989,
+          0.12833714285714284
+        ],
+        "improved": 32,
+        "worse": 5,
+        "tied": 88
+      },
+      "Recall@100": {
+        "mean_delta": 0.0,
+        "bootstrap_95pct_interval": [
+          0.0,
+          0.0
+        ],
+        "improved": 0,
+        "worse": 0,
+        "tied": 125
+      },
+      "MRR@10": {
+        "mean_delta": 0.08416507936507936,
+        "bootstrap_95pct_interval": [
+          0.02399182539682539,
+          0.14397373015873008
+        ],
+        "improved": 42,
+        "worse": 18,
+        "tied": 65
+      },
+      "NDCG@10": {
+        "mean_delta": 0.08372112513690733,
+        "bootstrap_95pct_interval": [
+          0.0396165054776272,
+          0.12574155419099756
+        ],
+        "improved": 58,
+        "worse": 25,
+        "tied": 42
+      }
+    }
+  },
+  "paired_qwen_vs_minilm": {},
+  "oracle_mean_Recall@5": 0.7106007326007326,
+  "peak_allocated_gpu_gib_all_models": 8.060785293579102,
+  "inference_and_output_wall_seconds": 708.4621878843755,
+  "split": "dev",
+  "limitations": [
+    "Previously inspected dev; frozen-config validation, not untouched holdout",
+    "One timing pass per query; co-resident models; not isolated serving or end-to-end latency",
+    "Qwen-vs-MiniLM changes architecture, training, tokenizer and precision, not parameter count alone",
+    "No answer generation or answer-quality claim"
+  ]
+}

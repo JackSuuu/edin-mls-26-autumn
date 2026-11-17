@@ -118,11 +118,11 @@ def run(args):
     torch.manual_seed(20261116)
     data = CourseData(ROOT / "rag/data/rag_corpus")
     rows = load_jsonl(args.rankings)
-    qrels = data.load_qrels("practice")
-    expected = {r["query_id"] for r in data.audio_items("practice")}
+    qrels = data.load_qrels(args.split)
+    expected = {r["query_id"] for r in data.audio_items(args.split)}
     seen = [r["query_id"] for r in rows]
     if len(set(seen)) != len(seen) or (set(seen) != expected and not args.allow_subset):
-        raise ValueError("Frozen rankings must cover practice exactly (or explicitly allow subset)")
+        raise ValueError(f"Frozen rankings must cover {args.split} exactly (or explicitly allow subset)")
     if not set(seen) <= expected:
         raise ValueError("Unexpected query IDs")
     if args.limit:
@@ -145,9 +145,12 @@ def run(args):
             raise ValueError("MiniLM asset hash mismatch: " + name)
 
     args.output.mkdir(parents=True)
-    config = {"model": manifest, "minilm": mini_manifest, "split": "practice",
+    arms = ("dense", "qwen_matched") if args.primary_only else ARMS
+    config = {"model": manifest, "minilm": mini_manifest, "split": args.split,
               "queries": len(rows), "full_split": len(rows) == len(expected), "candidate_pool": 100,
-              "arms": ARMS, "primary_qwen_arm": "qwen_matched",
+              "arms": arms, "primary_qwen_arm": "qwen_matched",
+              "validation_status": ("Previously inspected dev; frozen-config validation, not untouched holdout"
+                                    if args.split == "dev" else "Exploratory practice comparison"),
               "instruction": INSTRUCTION, "prefix": PREFIX, "suffix": SUFFIX,
               "input_policy": {"minilm_512": "Original document; only_second pair truncation at 512",
                                "qwen_matched": "Original character prefix visible under MiniLM 512-token pair; no second truncation",
@@ -161,7 +164,7 @@ def run(args):
               "bootstrap_seed": 20261116, "bootstrap_replicates": args.bootstrap,
               "input_sha256": {"rankings": digest(args.rankings),
                                "corpus": digest(ROOT / "rag/data/rag_corpus/corpus.jsonl"),
-                               "qrels": digest(ROOT / "rag/data/rag_corpus/qrels_practice.tsv"),
+                               "qrels": digest(ROOT / f"rag/data/rag_corpus/qrels_{args.split}.tsv"),
                                "script": digest(__file__), "metrics": digest(ROOT / "rag/src/metrics.py")}}
     write_json(args.output / "config.json", config)
     mini_tok = AutoTokenizer.from_pretrained(args.minilm_dir, local_files_only=True, use_fast=True)
@@ -222,7 +225,7 @@ def run(args):
                     "matched_prefix_shortened_documents": sum(a != b for a, b in zip(docs, matched_docs)),
                     "dense": {"record_ids": ids, "scores": row.get("scores")}}
             # Alternate order to reduce a systematic warm-cache/order advantage.
-            methods = ["minilm_512", "qwen_matched", "qwen_native2048"]
+            methods = [arm for arm in arms if arm != "dense"]
             if index % 2 == 0:
                 methods.reverse()
             for arm in methods:
@@ -243,7 +246,7 @@ def run(args):
                              "input_tokens": sum(lengths) if lengths else None}
             # Qrels are used only after all model scores/orderings have been fixed.
             relevance = qrels[row["query_id"]]
-            for arm in ARMS:
+            for arm in arms:
                 item[arm]["metrics"] = metrics(item[arm]["record_ids"], relevance)
                 if item[arm]["metrics"]["Recall@100"] != item["dense"]["metrics"]["Recall@100"]:
                     raise ValueError("Candidate coverage changed during reranking")
@@ -254,7 +257,7 @@ def run(args):
             if index % 10 == 0 or index == len(rows):
                 print(f"[{index}/{len(rows)}] " + " ".join(
                     f"{arm} R5={np.mean([r[arm]['metrics']['Recall@5'] for r in per_query]):.4f}"
-                    for arm in ARMS), flush=True)
+                    for arm in arms), flush=True)
 
     rng = np.random.default_rng(20261116)
     samples = rng.integers(0, len(rows), size=(args.bootstrap, len(rows)))
@@ -263,11 +266,12 @@ def run(args):
                "oracle_mean_Recall@5": float(np.mean([r["oracle_Recall@5"] for r in per_query])),
                "peak_allocated_gpu_gib_all_models": torch.cuda.max_memory_allocated() / 2**30,
                "inference_and_output_wall_seconds": time.perf_counter() - start_all,
-               "limitations": ["Practice exploratory comparison, not untouched held-out validation",
+               "split": args.split,
+               "limitations": [config["validation_status"],
                                "One timing pass per query; co-resident models; not isolated serving or end-to-end latency",
                                "Qwen-vs-MiniLM changes architecture, training, tokenizer and precision, not parameter count alone",
                                "No answer generation or answer-quality claim"]}
-    for arm in ARMS:
+    for arm in arms:
         summary["arms"][arm] = {key: float(np.mean([r[arm]["metrics"][key] for r in per_query])) for key in KEYS}
         if arm != "dense":
             times = [r[arm]["rerank_ms"] for r in per_query]
@@ -275,7 +279,7 @@ def run(args):
                                          "median_rerank_ms": float(np.median(times)),
                                          "p95_rerank_ms": float(np.percentile(times, 95))})
             for base, target in (("dense", "paired_vs_dense"), ("minilm_512", "paired_qwen_vs_minilm")):
-                if arm == base:
+                if arm == base or base not in arms:
                     continue
                 summary[target][arm] = {}
                 for key in KEYS:
@@ -302,6 +306,9 @@ def main():
     ap.add_argument("--bootstrap", type=int, default=2000)
     ap.add_argument("--limit", type=int)
     ap.add_argument("--allow-subset", action="store_true")
+    ap.add_argument("--split", choices=("practice", "dev"), default="practice")
+    ap.add_argument("--primary-only", action="store_true",
+                    help="Run only dense/Qwen matched; no extra model or long-context exploration")
     args = ap.parse_args()
     if args.model_dir is None:
         args.model_dir = ROOT / "rag/models" / args.model.split("/")[-1].lower()

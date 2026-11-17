@@ -1,0 +1,8 @@
+{
+  "passed": true,
+  "queries": 125,
+  "split": "dev",
+  "frozen_candidates_and_transcripts_verified": true,
+  "all_metrics_recomputed_and_stable_ranking_verified": true,
+  "matched_prefix_not_truncated_again": true
+}

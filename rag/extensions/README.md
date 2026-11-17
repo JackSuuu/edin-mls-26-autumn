@@ -31,6 +31,13 @@ and latency separately.
 - [explore_qwen_selection_controls.py](explore_qwen_selection_controls.py): compare
   fixed dense/Qwen rank-fusion and dense-anchor controls using saved rankings,
   without model calls. These are retrieval-only exploratory results.
+- [run_qwen_dev_validation.py](run_qwen_dev_validation.py): explicitly authorized
+  frozen 4B matched/dev validation with fresh dense/Qwen answers, staged smoke
+  checks, run locking, source/input snapshots and offline audits. The completed
+  [dev protocol/results](../experiments/QWEN_DEV_VALIDATION.md) distinguish
+  replicated retrieval gains from the answer interval that still includes zero.
+  This is previously inspected dev, not an untouched test set; do not rerun it
+  to seek significance.
 
 From the repository root, the published retrieval data supports these offline
 checks without model downloads or ELM calls:

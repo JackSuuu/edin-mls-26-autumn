@@ -1,0 +1,95 @@
+{
+  "splits": {
+    "practice": {
+      "split": "practice",
+      "queries": 350,
+      "points": [
+        {
+          "arm": "dense5",
+          "label": "Fresh Dense5",
+          "mean_judge_score": 0.3373809523809524,
+          "mean_attributed_seconds": 4.757312715891748,
+          "mean_input_tokens": 1289.7114285714285
+        },
+        {
+          "arm": "qwen4_matched5",
+          "label": "Qwen 4B matched5",
+          "mean_judge_score": 0.381904761904762,
+          "mean_attributed_seconds": 10.778964349007499,
+          "mean_input_tokens": 1267.3085714285714
+        }
+      ],
+      "relative_mean_score_gain_percent": 13.196894848271024,
+      "relative_attributed_cost_increase_percent": 126.57674600621674,
+      "additional_attributed_seconds": 6.02165163311575,
+      "paired_score_delta": {
+        "mean_delta": 0.04452380952380953,
+        "query_bootstrap_95pct_interval": [
+          0.011190476190476192,
+          0.07880952380952382
+        ],
+        "improved": 115,
+        "worse": 80,
+        "tied": 155
+      },
+      "caveats": [
+        "Practice exploratory results",
+        "One generation/judge per answer; no pooling across splits",
+        "Mean judge score is not answer accuracy",
+        "Costs combine stages from different runs; not measured audio-to-answer latency",
+        "No individual-arm or timing confidence intervals inferred from the paired score interval",
+        "No Qwen 0.6B answer-quality point is available",
+        "Two observed configurations per split, not a latency/quality utility model"
+      ],
+      "source_path": "rag/results/qwen4-answers-3724290/comparison.json",
+      "source_sha256": "e4452b3d133ba055ac6d1c9d031c70a145f8edff0e7d94464b0c95e6f59d920f"
+    },
+    "dev": {
+      "split": "dev",
+      "queries": 125,
+      "points": [
+        {
+          "arm": "dense5",
+          "label": "Fresh Dense5",
+          "mean_judge_score": 0.31333333333333335,
+          "mean_attributed_seconds": 4.572712252989412,
+          "mean_input_tokens": 1209.048
+        },
+        {
+          "arm": "qwen4_matched5",
+          "label": "Qwen 4B matched5",
+          "mean_judge_score": 0.37,
+          "mean_attributed_seconds": 10.263043689250946,
+          "mean_input_tokens": 1245.16
+        }
+      ],
+      "relative_mean_score_gain_percent": 18.08510638297871,
+      "relative_attributed_cost_increase_percent": 124.44105645487484,
+      "additional_attributed_seconds": 5.690331436261534,
+      "paired_score_delta": {
+        "mean_delta": 0.056666666666666664,
+        "query_bootstrap_95pct_interval": [
+          -0.0006666666666666612,
+          0.11266666666666666
+        ],
+        "improved": 40,
+        "worse": 30,
+        "tied": 55
+      },
+      "caveats": [
+        "Previously inspected dev, not untouched holdout",
+        "One generation/judge per answer; no pooling across splits",
+        "Mean judge score is not answer accuracy",
+        "Costs combine stages from different runs; not measured audio-to-answer latency",
+        "No individual-arm or timing confidence intervals inferred from the paired score interval",
+        "No Qwen 0.6B answer-quality point is available",
+        "Two observed configurations per split, not a latency/quality utility model"
+      ],
+      "source_path": "rag/results/qwen4-dev-validation-20261117-v1/answer-evaluation/comparison.json",
+      "source_sha256": "7e3a55e4e898d17e57aa63f3b8a5d7a5d6aa219f2e675626da56782df0afedc8"
+    }
+  },
+  "plot_source_sha256": "d3b0fc66d7d04beb9374a44634ffdbc71272f87baddde8286e0299eb7c6a573e",
+  "figure_path": "report/latex_template/figures/qwen-quality-cost.pdf",
+  "figure_sha256": "92a828ce649a74ab1d3ca6f74cf828168e8f6b22539f776d5ca8d317cb794758"
+}
