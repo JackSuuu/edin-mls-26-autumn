@@ -111,15 +111,6 @@ All-zero judgements decrease from **138/350 (39.43%)** to
 positive-to-zero transitions. Full-score judgements increase from 38 to 50.
 The remaining failures deserve inspection alongside the aggregate improvement.
 
-An offline inventory divides the 121 Qwen all-zero questions into 62 with no
-positive qrel in the selected five records, 29 with partial positive-qrel
-coverage and 30 with full positive-qrel coverage. Full labelled coverage does
-not prove that the answer is present, correctly interpreted or fairly judged.
-The [zero-score investigation](qwen4-zero-score-investigation.md) freezes a
-24-question diagnostic sample and specifies the next controls. All 350 questions
-remain in the benchmark. These diagnostic materials do not establish a further
-answer-quality improvement.
-
 ### Judge checks
 
 The [offline audit](../results/qwen4-answers-3724290/answer-evaluation-audit.json)
@@ -164,6 +155,30 @@ Full data: [comparison](../results/qwen4-answers-3724290/comparison.json),
 [dense5 scores](../results/qwen4-answers-3724290/judge_json_dense5/answer_judge_per_query.jsonl),
 [4B scores](../results/qwen4-answers-3724290/judge_json_qwen4_matched5/answer_judge_per_query.jsonl),
 [audit script](../extensions/audit_qwen_answers.py).
+
+### Follow-up: reduce zero-score failures
+
+The absolute gains of 0.160 to 0.200 points on the 0-to-4 dimensions are modest.
+The paired intervals support an improvement under this protocol, while the
+remaining 121 all-zero answers and the additional reranking cost limit its
+practical benefit. Mean dimension scores of 2 or 3 remain targets for further
+experiments; this run does not establish that a larger reranker can reach them.
+
+The next investigation should diagnose the remaining zeros and the 36
+positive-to-zero regressions. Start with the
+[frozen review sample](../results/qwen4-answers-3724290/zero-review-v1/summary.json)
+and extend the review across the zero cases. Separate retrieval misses, ASR
+errors, insufficient evidence, evidence-use failures, unsupported claims and
+reference/judge problems before choosing a change. A fixed-sample gold-context
+control can test whether supplying labelled relevant evidence helps the same
+generator; it is diagnostic only and is not a deployable benchmark result or
+a strict quality upper bound.
+
+Evaluate any selected fix on all 350 questions with the unchanged evaluator.
+Report the zero-score rate, paired score changes, regressions, token usage and
+latency. Retain the original questions and judgements; assess manual corrections
+separately. The aim is to eliminate avoidable failures through system changes,
+with explicit accounting for any unresolved cases.
 
 ### Earlier checkpoint
 
