@@ -1,0 +1,101 @@
+\textbf{Question and design.} Does document-ID coverage suffice to explain
+answer quality, or do evidence use and evaluation introduce separate failures?
+We uniformly sample 20 of the 121 Qwen practice answers with three judge
+dimensions all zero, without replacement from sorted IDs using Python
+\texttt{random.Random(20261118)}. This is exploratory sampling, not a
+preregistered intervention. We inspect saved questions, answers, judge reasons,
+gold documents and the retrieved passages implicated by each diagnosis.
+Dense5 paired records are retained for inspection, not a new significance test.
+No dev answers or new model/API calls are used. Review is AI-assisted and
+unblinded; author adjudication remains outstanding.
+
+\textbf{Population versus sample.} Table~\ref{tab:error-coverage} counts existing
+judge-zero answers in each 350-query practice arm, not human-confirmed errors.
+``Full'' means all positive-qrel IDs were selected, not sufficient evidence or
+correct application. Thirty of 121 Qwen zeros have full coverage; this is
+\emph{not} the failure rate among all full-coverage queries.
+Conditioning separately on each arm's zero scores also prevents a causal
+comparison of their evidence-use failure rates.
+
+\begin{table}[ht]
+\centering
+\caption{Qrel-ID coverage within practice judge-zero answers.}
+\label{tab:error-coverage}
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+Arm & Judge-zero & No qrel ID & Partial & Full \\
+\midrule
+Dense5 & 138 & 90 & 29 & 19 \\
+Qwen 4B & 121 & 62 & 29 & 30 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The sample contains 13 no-qrel, 2 partial and 5 full cases.
+These counts and non-exclusive qualitative tags do not establish population
+mechanism prevalence. In \texttt{q\_591325342f8c340f}, no gold ID is selected,
+yet retrieved record \texttt{r\_515c5b86e5dc3220} explicitly recommends
+``a Home Equity Line of Credit''. Missing a gold ID is therefore not proof
+that the corresponding answer evidence is absent.
+
+\textbf{Prompt integrity.} Rebuilding all 700 saved practice prompts from their
+selected IDs reproduces full top-five corpus text and saved SHA-256 hashes
+exactly; selection metadata also reports no truncation. This excludes local
+context-builder prefix loss for these fresh runs, not remote-server truncation.
+It does not establish that the source text itself is correct or sufficient.
+
+\textbf{Three targeted follow-up candidates.}
+In the Ireland pension case (\texttt{q\_371c6ca10bf1bf5e}), both gold records
+are included. Other selected records explicitly discuss UK allowances
+(\texttt{r\_1ada1a124c5a8a12}), US retirement accounts
+(\texttt{r\_422ea5e23cebc8b1}) and company-tax treatment
+(\texttt{r\_dc4b5d2c6048003d}). The answer presents contribution limits that
+``can be carried forward and offset against future profits'' as an Ireland
+benefit, without preserving the scope of those statements.
+This is a traceable scope-blending observation, not a demonstrated causal
+effect of distractors.
+
+In the stocks-on-sale case (\texttt{q\_1024d33a7dfa33ef}), the answer adds
+``Written Confirmation'' from a selected share-disposal/tax-basis document as
+a stock-selection factor. In the car-financing case
+(\texttt{q\_ce474d8f8d548797}), the second selected document states that dealers
+care about immediate, risk-free payment; the answer instead combines general
+cash/loan advice and omits that point. The short question also permits broader
+interpretations, so omission is not definitive proof of interference.
+These three cases motivate possible interventions; none measures snippet benefit.
+
+\textbf{Conditions can matter more than brevity.}
+The Tangerine case (\texttt{q\_66bb08d4774227f7}) has a short gold document
+ranked first, yet the answer omits the recipient actions that start the
+2--3-business-day interval. In \texttt{q\_e86dfaec0aa23a50}, the answer moves
+gold/silver's usefulness from \emph{after} the crisis to \emph{during} it.
+Keyword-oriented extraction could remove precisely these important conditions.
+
+\textbf{Evaluation is a separate boundary.}
+The implemented judge is instructed to evaluate only against gold documents;
+the generator sees retrieved top-five documents. For example, the expense-ratio
+answer (\texttt{q\_0a12138b81eb7e2a}) cites quarterly reports/prospectuses
+supported by selected text outside gold. Such reference-scope differences
+do not by themselves prove factual hallucination or judge non-compliance.
+
+Six sampled cases have specific judge-text conflict flags:
+the eBay reason acknowledges grounding despite all-zero scores;
+the credit-report reason misstates the answer's attribution to creditors;
+the Tangerine reason attributes wording absent from the answer;
+the personal-tax reason describes a largely individual-deductions answer as
+business-tax discussion; the software reason makes contradictory Bloomberg
+support claims; and the crisis-assets reason denies items actually present in
+gold. These are review flags, not six corrected scores or a general judge-error
+rate. Real answer defects can coexist with faulty judge explanations.
+All original scores and paired intervals are retained.
+
+\textbf{Reproduction and stopping boundary.}
+\texttt{python3 rag/extensions/analyze\_practice\_errors.py} reconstructs the
+sample, coverage counts and review files using the course asset archive and
+saved practice outputs. The evidence record lists the script, editable
+annotations, full case packets and source-hash manifest.
+Every quoted review span is checked verbatim against its named source;
+this checks provenance, not the correctness of the interpretation.
+We stop configuration search rather than add a snippet arm without a specific
+test. A future intervention must preserve conditions, control content/length
+changes and identify any gold-aware extraction as an oracle diagnostic.

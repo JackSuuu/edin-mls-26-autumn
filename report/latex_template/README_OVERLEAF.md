@@ -19,7 +19,8 @@ Compile the report and run the PDF format checker before submission.
 
 For this repository's finished report, upload the entire `latex_template/`
 directory, not only `report.tex`. In particular, retain
-`asr_selected_answers.tex` and the `figures/` directory. The selected answers
+`asr_selected_answers.tex`, `practice_error_analysis.tex` and the `figures/`
+directory. The selected answers
 are included in Appendix A and the figures are committed vector PDFs; no local
 Python execution is needed on Overleaf.
 

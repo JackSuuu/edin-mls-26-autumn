@@ -85,7 +85,8 @@
 \section{Introduction}
 \label{sec:introduction}
 
-How do component choices affect final quality and computational cost?
+Which component choices improve quality, which increase cost, and where do
+remaining failures arise?
 We investigate this question through custom CUDA kernels for GLM-ASR-Nano and a
 retrieval-augmented generation (RAG) pipeline~\cite{lewis2020rag}. The ASR baseline
 uses PyTorch fallbacks (\texttt{./run.sh --cuda none}); our four CUDA task groups
@@ -101,6 +102,9 @@ answer scores at substantial cost. A subsequent frozen-configuration check on
 the previously inspected dev set replicates retrieval gains, but its positive
 mean answer-score difference remains uncertain. Dev is not used to retune Qwen;
 this is not a newly collected or untouched independent test.
+An offline practice diagnostic then examines evidence use and judge limitations,
+not another benchmark configuration. Our goal is to test explanations through
+controlled comparisons, not to assume that more methods imply a better system.
 
 All four selected ASR answers are collected in Appendix~\ref{app:asr-answers}:
 Task 1, Question 1 (Section~\ref{sec:q1}),
@@ -113,7 +117,7 @@ The Appendix maps measurements to committed evidence files.
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=\linewidth]{figures/system-architecture.pdf}
+\includegraphics[width=\linewidth]{figures/ASR_RAG_System_Architecture_No_Title.pdf}
 \caption{System/data-flow overview. Selection experiments reuse saved transcripts
 and candidate lists; qrels feed only offline evaluation. Rerank/API costs
 are stage-attributed, not a measured audio-to-answer latency.}
@@ -354,6 +358,18 @@ Judged all-zero answers remain
 does not guarantee a better answer on each query, and no 0.6B answer comparison
 was run.
 
+\textbf{Offline failure diagnostic.} Of the 121 Qwen practice judge-zero answers,
+30 contain all positive-qrel documents in their selected top five. A uniform,
+fixed-seed sample of 20 zero-score cases reveals scope/condition problems:
+an Ireland pension answer blends UK/US/company-tax material despite containing
+both gold documents. Six sampled cases have judge-text conflicts flagged for
+author review, not corrected scores. The judge sees only gold evidence,
+whereas generation sees retrieved documents; missing gold IDs need not mean
+missing answer evidence. All 700 saved practice prompts match full top-five
+corpus text, excluding local prefix truncation in these fresh runs, not
+remote-server truncation. This unblinded AI-assisted diagnostic is exploratory,
+not causal or independent human validation (Appendix~\ref{app:error-analysis}).
+
 \begin{figure}[t]
 \centering
 \includegraphics[width=.95\linewidth]{figures/qwen-quality-cost.pdf}
@@ -388,45 +404,48 @@ Appendix~\ref{app:asr-answers}.
 \section{Discussion and Conclusion}
 \label{sec:conclusion}
 
-\textbf{Correctness versus performance.} All CUDA tasks pass, yet the custom
-GEMM bottleneck makes full ASR take 1986.1~ms versus PyTorch's 521.3~ms,
-about $3.8\times$ the latency. Correct implementation alone does not establish
-system acceleration; profiling and library comparisons locate the cost.
+\textbf{What the controls establish.} Passing CUDA tests does not establish
+acceleration: profiling and cuBLAS comparisons locate the dominant linear cost.
+Likewise, larger context and candidate pools do not establish better answers.
+Their negative results motivate testing evidence selection rather than merely
+adding features. Matched-text Qwen improves practice answer scores at similar
+input length, but does not isolate model size from training or architecture.
 
-\textbf{Quantity versus selection quality.} Answer-score intervals include zero
-in the \emph{initial five-arm comparisons}, not in every subsequent experiment.
-More documents and larger MiniLM candidate pools do not solve evidence selection.
-Matched-text Qwen improves practice answer scores without expanding average
-generation context, at substantial cost. Retrieval gains replicate on the
-inspected dev set; its answer-score mean moves in the same direction but its
-interval includes zero. Evidence for a downstream benefit is stronger on practice
-than on dev, not a universal claim that bigger selectors help.
+\textbf{What the diagnostic does not establish.} Qrel-ID recall measures neither
+retention of useful conditions nor correct application of evidence.
+The pension case motivates a hypothesis of cross-context scope blending;
+it does not establish its prevalence or that snippets would fix it.
+Reference-only judging is a separate measurement limitation, not proof that
+every low score is wrong. We retain all original scores and intervals.
 
 \textbf{When is the cost justified?} The added attributed delay may be problematic
 for interactive voice use, whereas offline QA may tolerate it for the observed
 score gain. Neither a user latency target nor a quality-to-delay utility was
 measured, so no configuration is universally preferable.
-Qwen 0.6B is a lower-cost \emph{retrieval} option, not an established better
-end-to-end trade-off: its downstream answers were not evaluated.
+Qwen 0.6B has no downstream answer evaluation.
+
+\textbf{Research boundary and stopping rule.} We stop configuration search here.
+A further experiment should specify an unresolved hypothesis, explain why
+existing controls cannot answer it, and remain informative without a score gain.
+A targeted snippet intervention could test evidence interference, but must
+preserve applicable conditions and separate content from length effects;
+gold-aware extraction would be an oracle diagnostic, not a deployable selector.
+No such intervention or snippet quality/cost benefit is claimed.
 
 \textbf{Limits of the evidence.} Qwen was selected on practice and then frozen
 for a new run on the previously inspected dev set, not an untouched independent
-test. Genuine independent validation still requires unused queries.
-Unadjusted query bootstrap excludes adaptive model selection and
-repeated-generation/judge uncertainty. Qrels can be incomplete; selected-ID
-recall can credit a truncated document without its useful span. Same-model
-generation/judging and observed judge inconsistencies limit quality claims.
-Changing checkpoints does not identify capacity, domain mismatch, missing
-document background or ASR formatting as the root cause. ASR correctness covers
-supplied tests and a reference clip, not exhaustive transcription accuracy;
-cost measurements do not provide a matched audio-to-answer benchmark.
+test. Unadjusted query bootstrap excludes adaptive model selection and repeated
+generation/judge uncertainty. Qrels may be incomplete; in budgeted arms, ID
+recall can credit text whose useful span was truncated. Same-model judging and
+score-conditioned case review limit quality claims. ASR tests and small probes
+do not establish general transcription equivalence or matched end-to-end cost.
 
 \textbf{Conclusion.} Component choice changes both final quality and cost.
-Our experiments locate a CUDA performance bottleneck and an evidence-selection
-limitation. Qwen retrieval gains persist on dev, while downstream evidence is
-positive on practice and uncertain on dev, with substantial added cost.
-Optimisation should target final quality and latency, not correctness,
-model size or evidence quantity in isolation.
+The investigation locates a CUDA bottleneck, finds no detectable answer gain
+from added context, and finds practice evidence for stronger selection at substantial
+cost. Retrieval gains persist on inspected dev; downstream benefit remains
+uncertain. Case diagnostics distinguish evidence-use hypotheses from evaluation
+limitations, rather than treating benchmark improvement as an explanation.
 
 % References are excluded from the main-body page limit.
 \bibliography{references}
@@ -525,10 +544,18 @@ Offline audits:
 \path{rag/results/report-quality-cost/summary.json}.
 The script reads both fresh answer comparisons separately, preserves the full score axes,
 and uses no model or API calls.
-\par\noindent\textbf{System architecture figure, editable vector source and code provenance:}
-\path{report/draw_system_architecture.py},
-\path{report/latex_template/figures/system-architecture.pdf},
-\path{rag/results/report-architecture/summary.json}.
+\par\noindent\textbf{System architecture figure, supplied SVG and conversion provenance:}
+\path{report/latex_template/figures/ASR_RAG_System_Architecture_No_Title.svg},
+\path{report/convert_architecture_svg.py},
+\path{report/latex_template/figures/ASR_RAG_System_Architecture_No_Title.pdf},
+\path{rag/results/report-architecture/svg-summary.json}.
+\par\noindent\textbf{Offline practice error diagnostic:}
+\path{rag/extensions/analyze_practice_errors.py},
+\path{rag/experiments/practice-error-analysis-v1.json},
+\path{rag/experiments/PRACTICE_ERROR_ANALYSIS.md},
+\path{rag/results/practice-error-analysis-v1/summary.json},
+\path{rag/results/practice-error-analysis-v1/cases.json},
+\path{rag/results/practice-error-analysis-v1/REVIEW.md}.
 \par
 To recompute summaries only, without invoking generation or judge:
 \begin{verbatim}
@@ -707,6 +734,10 @@ Frozen inputs, code snapshots, new answers, judge caches/raw responses and
 the two offline audits are included with the run artifacts. No rerun is made
 to obtain an interval excluding zero.
 
+\section{Offline practice error analysis}
+\label{app:error-analysis}
+\input{practice_error_analysis.tex}
+
 % Keep this line unchanged.
 \newpage
 
@@ -737,6 +768,13 @@ artifacts. The plot and report now distinguish practice/dev and retain the dev
 interval including zero.
 It also drew the architecture diagram from the implementation, distinguishing
 cached inputs, GPU/local/remote components and offline evaluation.
+That diagram was subsequently replaced with the group-supplied SVG; the agent
+converted it to a vector PDF for LaTeX without editing the supplied SVG.
+For the error-analysis revision, it sampled saved practice judge-zero cases,
+checked outgoing prompts against full corpus text, traced qualitative examples
+and judge-text conflicts to saved records, and drafted the diagnostic discussion.
+This was unblinded AI-assisted review, not independent human adjudication;
+it made no new model, generation or judge calls and did not change saved scores.
 This describes automated checks, not
 an assertion that the authors independently verified every number. Final author
 review remains outstanding. The group remains

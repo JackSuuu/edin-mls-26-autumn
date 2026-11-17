@@ -1,0 +1,14 @@
+{
+  "source_path": "report/latex_template/figures/ASR_RAG_System_Architecture_No_Title.svg",
+  "source_sha256": "e82f1daafcd5163faf46cce7f481f590715f4b22bfc47ca4ac539eaa6828faa8",
+  "converter_path": "report/convert_architecture_svg.py",
+  "converter_sha256": "11af7754e3a8b547a8fa85bd9f3672bb9a5c57b4fefaa9ac7de26b46d8c9e30e",
+  "pdf_path": "report/latex_template/figures/ASR_RAG_System_Architecture_No_Title.pdf",
+  "pdf_sha256": "d856b516c646d028f7636d0597008e1b5c4657fd2e1df9b89848693ddea06d63",
+  "preview_path": "report/latex_template/figures/ASR_RAG_System_Architecture_No_Title.png",
+  "preview_sha256": "3d006c118110b6e4ee70b5c5e75a3c55a8daf59e6d51117b36061a3f443d486e",
+  "cairosvg_version": "2.9.1",
+  "pymupdf_version": "2.1",
+  "source_modified": false,
+  "note": "User-supplied SVG; marker arrowheads preserved by CairoSVG; vector PDF included by LaTeX."
+}

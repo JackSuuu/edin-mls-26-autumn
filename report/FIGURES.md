@@ -2,17 +2,22 @@
 
 ## System architecture
 
-![CUDA ASR and RAG data flow](latex_template/figures/system-architecture.png)
+![CUDA ASR and RAG data flow](latex_template/figures/ASR_RAG_System_Architecture_No_Title.png)
 
 - Vector PDF used by LaTeX:
-  `report/latex_template/figures/system-architecture.pdf`.
-- Editable generator: `report/draw_system_architecture.py`.
-  Edit `NODES` and `EDGES`, then run `python3 report/draw_system_architecture.py`
-  from the repository root. The PDF uses text/lines/shapes, not a raster screenshot.
-- Source/provenance: `rag/results/report-architecture/summary.json` records node
-  and edge definitions, implementation hashes, and PDF/PNG hashes.
-- Solid arrows show system data flow; purple dashed arrows carry rankings,
-  answers and public references to offline evaluation.
+  `report/latex_template/figures/ASR_RAG_System_Architecture_No_Title.pdf`.
+- Editable source: the group-supplied
+  `report/latex_template/figures/ASR_RAG_System_Architecture_No_Title.svg`,
+  pulled in commit `07fdab9`. It is included without modifying the supplied SVG;
+  its title is omitted in favour of the report's Figure 1 caption.
+- Conversion: install `CairoSVG==2.9.1` and PyMuPDF in a Python environment, then
+  run `python report/convert_architecture_svg.py` from the repository root.
+  The PDF contains vector shapes and text, not a raster screenshot.
+  CairoSVG preserves SVG marker arrowheads; direct MuPDF SVG import loses them.
+  CairoSVG also requires the platform Cairo library.
+- Source/conversion/asset hashes and converter versions:
+  `rag/results/report-architecture/svg-summary.json`.
+- Solid arrows show data flow; dashed arrows denote cached/reused artifacts.
 - Qrels do **not** feed online evidence selection; no judge-to-selector tuning
   loop is shown.
 - Transcript/candidate caches mark the controlled RAG experimental boundary.
@@ -20,6 +25,10 @@
   costs. The diagram does not claim measured audio-to-answer latency.
 - Top-k generation uses full selected records; token-budget arms may use
   document prefixes. The context-builder label deliberately covers both.
+- The previous `draw_system_architecture.py` and `figures/system-architecture.*`
+  are retained as superseded assets; they are no longer included by LaTeX.
+  Their original provenance remains in `report-architecture/summary.json`.
+  The earlier titled SVG in `latex_template/` is likewise superseded.
 
 ## Quality versus attributed stage cost
 

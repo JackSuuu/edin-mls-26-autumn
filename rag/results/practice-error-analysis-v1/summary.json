@@ -1,0 +1,94 @@
+{
+  "schema": "practice-error-analysis-v1",
+  "seed": 20261118,
+  "sample_size": 20,
+  "sampling": "Uniform without replacement from sorted Qwen practice all-zero judge IDs",
+  "eligible_queries": 121,
+  "sampled_query_ids": [
+    "q_071078c6a43f6ed1",
+    "q_0a12138b81eb7e2a",
+    "q_1024d33a7dfa33ef",
+    "q_32480a484879c3ec",
+    "q_371c6ca10bf1bf5e",
+    "q_3bd06eaf675d1a65",
+    "q_3d50f31d4e5c576c",
+    "q_528e698db2500a86",
+    "q_591325342f8c340f",
+    "q_66bb08d4774227f7",
+    "q_7fb7c14235f8ec06",
+    "q_8f81a59b842b2036",
+    "q_b7bd4791c356567a",
+    "q_bc1c349d33c5f4b0",
+    "q_c3dad6ee3fe9e058",
+    "q_c5a5320bcfd3a373",
+    "q_ce474d8f8d548797",
+    "q_e16177bbeb991130",
+    "q_e86dfaec0aa23a50",
+    "q_f76c520706cfe2c3"
+  ],
+  "population": {
+    "dense5": {
+      "queries": 350,
+      "all_zero": 138,
+      "zero_by_qrel_coverage": {
+        "full": 19,
+        "none": 90,
+        "partial": 29
+      }
+    },
+    "qwen4_matched5": {
+      "queries": 350,
+      "all_zero": 121,
+      "zero_by_qrel_coverage": {
+        "full": 30,
+        "none": 62,
+        "partial": 29
+      }
+    }
+  },
+  "sample_qrel_coverage": {
+    "none": 13,
+    "full": 5,
+    "partial": 2
+  },
+  "all_700_saved_prompts_match_full_corpus_text": true,
+  "all_700_prompt_hashes_match": true,
+  "corpus_sha256": "2c83ce85867aa3ca100ab58698f22138bc0012d944cd22ad4305d12a25c25ac5",
+  "practice_qrels_sha256": "063dbbaa9ca522fd6ab74df6b1f9c7c6e568d383fc56d8cb83eb8f0a75a620c8",
+  "source_sha256": {
+    "rag/results/qwen4-answers-3724290/config.json": "0350971c7297c67df5ea2bd194f186eda4cb93fcb88d9636a125934d9cb05ca2",
+    "rag/results/qwen4-answers-3724290/answers/dense5.jsonl": "4414aa1a598d6b4d081e73b3f6cfd30e62c67a25f83f49857bb9f5fd4b33cc71",
+    "rag/results/qwen4-answers-3724290/judge_json_dense5/answer_judge_per_query.jsonl": "e6d470a7e0110c400c6d4de048cca2a1fcf9810da546c7f200fed1ab72672443",
+    "rag/results/qwen4-answers-3724290/answers/qwen4_matched5.jsonl": "c092b1ef21353eb95653eb0d58cac54b4ec55181bfb9b04d383c6ccb628722bc",
+    "rag/results/qwen4-answers-3724290/judge_json_qwen4_matched5/answer_judge_per_query.jsonl": "eed4a135564b53a64fc99a34c72ae8e601c6cd45590452b3b2c6adff1dffa6db",
+    "rag/experiments/practice-error-analysis-v1.json": "d4adfde6242bef6602669ec02b392bdaa86a3b9c9baaccc2617346e047aa9c2d"
+  },
+  "script_sha256": "f7ffd4bfacdde71f434ca48d3a419af9dc01310a65195a236080207afed0869f",
+  "qualitative_tags_nonexclusive": {
+    "condition_omission": 3,
+    "entity_recognition_gap": 1,
+    "judge_text_conflict": 6,
+    "jurisdiction_scope_blending": 1,
+    "off_topic_detail": 2,
+    "query_ambiguity": 1,
+    "query_reference_mismatch": 4,
+    "reasoning_mismatch": 1,
+    "reference_point_omission": 2,
+    "reference_scope_mismatch": 9,
+    "reference_specificity_gap": 2,
+    "risk_caveat_omission": 1,
+    "snippet_candidate": 3,
+    "source_quality_risk": 1,
+    "topic_substitution": 3
+  },
+  "reviewer": "OpenAI coding assistant; unblinded exploratory review, not independent human adjudication",
+  "review_quotations_verified_verbatim": true,
+  "limitations": [
+    "Judge-zero is a sampling label, not human-verified incorrectness.",
+    "AI-assisted unblinded qualitative review; not independent human adjudication.",
+    "Qrel coverage is document-ID coverage, not semantic evidence sufficiency.",
+    "Saved outgoing prompts do not prove what the remote server internally processed.",
+    "No snippet intervention or repeated generation/judging; no causal attribution.",
+    "Practice-only exploratory diagnostic; no new benchmark improvement claim."
+  ]
+}

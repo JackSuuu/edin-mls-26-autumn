@@ -2,6 +2,12 @@
 
 ## This revision
 
+- Reframes the discussion around controlled explanations, evidence-use versus
+  measurement limitations, and an explicit stopping boundary rather than further
+  configuration search.
+- Adds an exploratory, unblinded AI-assisted sample of 20/121 practice Qwen
+  judge-zero cases. Six judge-text conflicts are flags, not corrected scores.
+  Scope blending motivates a hypothesis; no snippet intervention is claimed.
 - Adds a reproducible vector system architecture diagram (Figure 1), showing
   GPU/CPU/remote components, cached RAG inputs and offline-only evaluation.
 - Moves all four selected ASR answers unchanged into Appendix A, linked from
@@ -41,7 +47,7 @@ both dev offline audits were rerun without model/API calls. PDF checker PASS,
 main body six pages, no `[?]`, all 58 evidence paths tracked. Fresh split-specific
 table values and the preserved initial table were matched against JSON; the
 figure, tables and dev uncertainty wording were visually inspected by the agent.
-Latest architecture revision: **31 tracked RAG tests + 11 report tests passed**
+Previous architecture revision: **31 tracked RAG tests + 11 report tests passed**
 (5 plot arithmetic and 6 architecture tests). Compilation and PDF checker PASS:
 six-page main body, twelve pages total, no `[?]`. All 62 evidence paths exist
 and are staged/tracked; citation keys resolve including the ASR input file.
@@ -49,12 +55,42 @@ Diagram implementation/source/PDF/PNG hashes match. The selected-answer input
 exactly matches the former main-body block. Official style is unchanged and
 review mode is retained. No models, generation or judging were run for this update.
 
-For author review: architecture Figure 1 on page 2, fresh results Table 1 on
+Architecture-revision page pointers (superseded below): Figure 1 on page 2, fresh results Table 1 on
 page 3, dev result paragraph on page 4, quality-cost Figure 2 and Discussion
 start on page 5, References on page 6, all four selected answers in Appendix A
 on page 7. Appendix starts on a fresh page. The agent visually inspected the
 title/architecture, fresh table, quality-cost figure and selected-answer layout;
 this is not independent author sign-off.
+
+### Latest error-analysis integration
+
+- **35 RAG tests** passed (31 previously tracked + 4 offline diagnostic tests);
+  **18 report tests** passed (including 4 diagnostic-evidence checks and 3
+  supplied-SVG integration checks).
+- Diagnostic generation is deterministic across repeated offline runs; input
+  and script hashes match. Verbatim quotations are checked against named sources.
+  This verifies provenance, not the correctness of AI interpretations.
+- Compilation and course PDF checker PASS: six-page main body, fourteen pages
+  total, References start on page 6 and continue on page 7. No `[?]`;
+  all 69 evidence paths exist and are included in this revision, including the
+  new diagnostic artifacts. Diagnostic results and SVG conversion provenance are
+  explicitly included despite broad result-directory ignore rules.
+- Official style, review mode and four selected ASR answers are unchanged.
+  The dev answer interval remains `[-0.0007, 0.1127]`. Saved answers/judgements
+  were not modified. No inference, generation or judging was run.
+- Current author-review locations: architecture Figure 1 page 2, fresh answer
+  Table 1 page 3, quality-cost Figure 2 and offline diagnostic page 5, Discussion
+  page 6, ASR selected answers Appendix A page 8, error analysis Appendix H pages
+  12–13, AI declaration/group details page 14.
+- The agent visually inspected the diagnostic/discussion and Appendix H layout.
+  Authors still need to check the three proposed follow-up cases and six judge
+  conflict flags. No author-review checkbox is completed by these automated checks.
+- Pulled `07fdab9` with the group's latest no-title architecture SVG and replaced Figure 1 with
+  a vector PDF converted from it. The supplied SVG is byte-for-byte unchanged;
+  all 12 arrowheads survive conversion, no raster image is embedded, and repeated
+  conversions produce identical artifacts in the recorded converter environment.
+  `svg-summary.json` records source/converter/output hashes and versions.
+  The rendered page 2 was visually inspected; body remains six pages/PASS.
 
 ## Required author review — still outstanding
 
