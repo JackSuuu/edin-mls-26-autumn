@@ -118,6 +118,36 @@ reference-only scoring, real answer defects and other judge behaviour.
 
 \subsection{What the sampled diagnoses support}
 
+\textbf{Close reading of full-coverage zeros.}
+Separately from the 20-case sample, an AI reviewer inspected all six Qwen
+answers in the frozen full-coverage zero stratum of the review packet
+(Q13--Q18). The reviewer compared each answer with its five input documents,
+the judge's gold documents and its written reason. The review was unblinded;
+the two samples overlap and their counts must not be pooled.
+
+Four explanations make claims that can be checked directly against the text.
+For dividends and APY (Q13), the answer omits the key clarification that these
+are not separate income streams; the judge instead claims it explicitly says
+they are separate. For the car return (Q14), gold says ``Returning the car is
+not an option'' and the answer agrees, yet the judge says gold never mentions
+returning a vehicle. For seminar travel (Q15), gold expressly conditions the
+deduction on the primary purpose of travel. The judge rejects that condition;
+the answer's real weakness is mixing jurisdictions. For mortgage insurance
+(Q16), the answer says it is not deductible; the judge calls this a
+contradiction while quoting the sole gold document's opening ``No.''
+This comparison checks agreement with the supplied text, not current tax law.
+
+Two other answers show why retrieval alone cannot resolve these cases.
+The take-home-pay answer (Q17) applies a freelance-income contribution rate
+to a general salary question. Meanwhile the judge expects figures from a
+specific salary scenario absent from the question. The car-financing answer
+(Q18) discusses cash reserves and loans using the retrieved texts, but omits
+the gold document's point about what matters to the dealer. These observations
+identify answer omissions and errors in judge explanations; they neither assign
+replacement scores nor estimate a judge error rate. The source texts and
+original decisions are in \path{zero-review-v1/review-packets.json} and
+\path{zero-review-v1/review-key.json} under \path{rag/results/qwen4-answers-3724290/}.
+
 Reference/question alignment is the most frequently flagged issue (12 cases),
 followed by evidence use/scope/conditions (9) and judge-text conflict (6).
 These findings direct attention to reference adequacy and evidence application
@@ -152,6 +182,54 @@ reference interpretation or attribution.
 All 20 cases have labels and a status, but the other 17 have not been reported
 as fully human-reviewed. The three confirmed checks---pension, software and
 crisis assets---and their exact quotations are in \texttt{error-case-recheck.json}.
+
+For reading the sample, the existing flags correspond to three non-exclusive
+mechanisms. \emph{Answer defect} is the evidence-use flag: a retrieved statement
+is applied to the wrong subject, time or condition. \emph{Judge inconsistency}
+is the judge-text-conflict flag: the written reason misstates gold or the answer.
+\emph{Reference ambiguity} is the reference-alignment or topic-mismatch flag:
+the labelled documents, the transcript, or both leave the intended situation
+underdetermined. A case can carry more than one mechanism.
+Table~\ref{tab:case-inventory} records every sampled query. Rows marked
+ambiguous are left unresolved; they are not forced into a single cause.
+Only the three author-confirmed rows have a human-checked evidence chain.
+The other seventeen remain source-linked notes, each with a saved quotation in
+\texttt{practice-error-analysis-v1.json}, not a completed human audit.
+
+\begin{table}[ht]
+\centering
+\small
+\setlength{\tabcolsep}{3pt}
+\caption{Inventory of the 20 sampled Qwen judge-zero cases. Flags overlap.
+Status is the existing case-level label, not a new adjudication.}
+\label{tab:case-inventory}
+\begin{tabular}{@{}lll@{}}
+\toprule
+Query & Status & Source-linked flags \\
+\midrule
+q\_071078c6a43f6ed1 & ambiguous & topic mismatch \\
+q\_0a12138b81eb7e2a & possible & reference alignment \\
+q\_1024d33a7dfa33ef & possible & evidence use \\
+q\_32480a484879c3ec & ambiguous & reference alignment; judge conflict \\
+q\_371c6ca10bf1bf5e & confirmed & evidence use \\
+q\_3bd06eaf675d1a65 & possible & reference alignment; judge conflict \\
+q\_3d50f31d4e5c576c & ambiguous & topic mismatch \\
+q\_528e698db2500a86 & ambiguous & reference alignment \\
+q\_591325342f8c340f & possible & reference alignment; evidence use \\
+q\_66bb08d4774227f7 & possible & evidence use; judge conflict \\
+q\_7fb7c14235f8ec06 & possible & evidence use \\
+q\_8f81a59b842b2036 & possible & reference alignment \\
+q\_b7bd4791c356567a & ambiguous & reference alignment \\
+q\_bc1c349d33c5f4b0 & possible & reference alignment; evidence use \\
+q\_c3dad6ee3fe9e058 & ambiguous & reference alignment; judge conflict; source risk \\
+q\_c5a5320bcfd3a373 & possible & topic mismatch \\
+q\_ce474d8f8d548797 & ambiguous & reference alignment; evidence use \\
+q\_e16177bbeb991130 & confirmed & reference alignment; judge conflict \\
+q\_e86dfaec0aa23a50 & confirmed & evidence use; judge conflict \\
+q\_f76c520706cfe2c3 & ambiguous & reference alignment; evidence use \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \textbf{Scope of the conclusions.}
 The counts describe the inspected Qwen practice judge-zero sample rather than
