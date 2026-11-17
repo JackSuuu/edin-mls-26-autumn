@@ -47,7 +47,7 @@ class ErrorAnalysisEvidenceTests(unittest.TestCase):
         script = ROOT / "rag/extensions/analyze_practice_errors.py"
         self.assertEqual(hashlib.sha256(script.read_bytes()).hexdigest(), self.summary["script_sha256"])
         self.assertIn("[-0.0007,0.1127]", self.report)
-        self.assertIn("unblinded AI-assisted", self.report)
+        self.assertIn("subsequently confirmed three representative case analyses", self.report)
         self.assertIn("practice_error_analysis.tex", self.report)
 
     def test_zero_integrity_and_recheck_do_not_replace_scores(self):
@@ -60,8 +60,15 @@ class ErrorAnalysisEvidenceTests(unittest.TestCase):
             self.assertEqual(p["finish_reasons"], {"stop": 350})
             self.assertTrue(p["all_scores_match_cached_and_raw_judge_responses"])
         self.assertTrue(s["judge_zero_template_risk"]["schema_literal_present"])
-        self.assertTrue(s["representative_case_recheck"]["author_confirmation_outstanding"])
+        self.assertFalse(s["representative_case_recheck"]["author_confirmation_outstanding"])
         self.assertFalse(s["representative_case_recheck"]["scores_changed"])
+
+    def test_concise_declaration_covers_assistance_and_responsibility(self):
+        declaration = self.report.split(r"\section*{AI declaration}", 1)[1].split(
+            "% Please put the information", 1)[0].strip()
+        self.assertEqual(len(re.split(r"(?<=[.!?])\s+", declaration)), 3)
+        for phrase in ("OpenAI", "experiment", "EuroLLM via ELM", "authors", "responsible"):
+            self.assertIn(phrase, declaration)
 
 
 if __name__ == "__main__":

@@ -100,9 +100,9 @@
     "rag/results/qwen4-answers-3724290/judge_json_qwen4_matched5/judge_cache.jsonl": "881cdeaeb650e68a6c23d32d8d40c952af2b3adde99b027131fd9560b0d49853",
     "rag/results/qwen4-answers-3724290/judge_json_qwen4_matched5/judge_raw.jsonl": "65cdc2a9d34d0988906d4f857d760509a9175f7972ea1f57f7888e45caeece43",
     "rag/experiments/practice-error-analysis-v1.json": "d4adfde6242bef6602669ec02b392bdaa86a3b9c9baaccc2617346e047aa9c2d",
-    "rag/experiments/error-case-recheck.json": "886b6955489db7e7d8c60d4df51fd4a13d002ed44da88d1e3c98a9cc148b9b66"
+    "rag/experiments/error-case-recheck.json": "3daa55710f8db92ee128f9bdcce975938deb10646463fc7aa8021aefac120315"
   },
-  "script_sha256": "19f29f04cb39256ac37f9e6cb688ead253aa17e629801fde31615fabf14f0a55",
+  "script_sha256": "a67186bcf965c456ebd16630be2cad633d9d705023ac1eb27b7dae4674d0e441",
   "qualitative_tags_nonexclusive": {
     "condition_omission": 3,
     "entity_recognition_gap": 1,
@@ -124,7 +124,8 @@
   "review_quotations_verified_verbatim": true,
   "representative_case_recheck": {
     "reviewer": "OpenAI coding assistant; second unblinded source check, not independent human review",
-    "author_confirmation_outstanding": true,
+    "author_confirmation_outstanding": false,
+    "author_confirmation_source": "User reports completed human confirmation of the representative cases; no exhaustive 20-case taxonomy or causal intervention is reported.",
     "scores_changed": false,
     "cases": [
       {

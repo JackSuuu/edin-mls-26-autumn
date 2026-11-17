@@ -123,7 +123,8 @@ python3 -m unittest discover -s rag/tests -p test_practice_error_analysis.py -v
    两个问题同时存在。judge 理由错误不等于整个答案正确。
 
 `error-case-recheck.json` 和自动重建的 `REVIEW.md` 保留证据链；
-作者确认仍未完成，所有原分数不变。
+用户已报告完成这三个代表案例的人工确认；这不等于完成20题互斥机制分类，
+也不构成删除干扰文档的因果实验。所有原分数不变。
 
 本地 judge 实现明确要求 **只按 gold evidence** 评判，而生成器看到的是
 实际检索的 top-5。两者证据范围不同：

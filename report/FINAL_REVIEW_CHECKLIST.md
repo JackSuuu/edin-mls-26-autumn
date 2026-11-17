@@ -98,7 +98,7 @@ this is not independent author sign-off.
   `svg-summary.json` records source/converter/output hashes and versions.
   The rendered page 2 was visually inspected; body remains six pages/PASS.
 
-### Latest zero-score and readability integration
+### Previous zero-score and readability integration
 
 - **37 tracked RAG tests and 25 report tests passed**. Repeated offline audit
   and figure generation produce byte-identical output in this environment.
@@ -119,12 +119,25 @@ this is not independent author sign-off.
   visually inspected. Architecture labels are at least about 6.9 pt at print size.
 - No new inference, generation, alternate-judge prompt run or snippet experiment.
 
-## Required author review — still outstanding
+### Latest author-confirmation update
 
-- [ ] Independently confirm the three second-pass cases in
+- User reports completed human confirmation of the representative cases.
+  The three-case checkbox below is updated on that basis, not by an automated check.
+- AI declaration shortened to three sentences covering OpenAI assistance,
+  EuroLLM/ELM generation and judging, and author responsibility.
+- This does not establish an exhaustive mutually exclusive taxonomy/counts for
+  the 20 sampled cases, population mechanism frequencies, or evidence-interference
+  causality. No new inference, generation, judging, score edits or snippet test.
+- **26 report tests and 37 RAG tests passed**; rebuilt PDF checker PASS, six-page
+  main body and 15 pages total. The three-sentence declaration remains on page 15.
+
+## Author review — confirmed cases and remaining checks
+
+- [x] Confirm the three second-pass cases in
       `rag/experiments/error-case-recheck.json`: tax loss versus contribution
       limits, software gold/retrieved scope, and crisis timing plus judge
-      misreading. AI source checks and exact quotations do not complete this.
+      misreading. Completed per the user's human-confirmation message; this is
+      not a claim that all 20 cases received exhaustive mechanism adjudication.
 - [ ] Both authors read the final PDF, including equations and table/figure
       captions, and accept the numerical interpretations and limitations.
 - [ ] Confirm citations genuinely support the nearby statements and the

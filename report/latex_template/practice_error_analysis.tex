@@ -7,7 +7,9 @@ preregistered intervention. We inspect saved questions, answers, judge reasons,
 gold documents and the retrieved passages implicated by each diagnosis.
 Dense5 paired records are retained for inspection, not a new significance test.
 No dev answers or new model/API calls are used. Review is AI-assisted and
-unblinded; author adjudication remains outstanding.
+unblinded; the authors subsequently confirmed three representative case analyses.
+This does not supply an exhaustive, mutually exclusive mechanism taxonomy
+for all 20 cases or an estimate for all queries/errors.
 
 \textbf{Population versus sample.} Table~\ref{tab:error-coverage} counts existing
 judge-zero answers in each 350-query practice arm, not human-confirmed errors.
@@ -129,7 +131,9 @@ not a fully correct answer. The crisis-assets example establishes two concurrent
 issues: the answer changes \emph{after} to \emph{during}, while the judge denies
 helicopters/connections that gold contains. A judge mistake therefore does not
 vindicate the entire answer. The three checks and exact quotations are saved
-in \texttt{error-case-recheck.json}; author confirmation is still outstanding.
+in \texttt{error-case-recheck.json}; the authors have confirmed these three
+analyses. This confirmation does not establish the prevalence of mechanisms
+or the causal effect of removing evidence.
 
 \textbf{Reproduction and stopping boundary.}
 \texttt{python3 rag/extensions/analyze\_practice\_errors.py} reconstructs the
