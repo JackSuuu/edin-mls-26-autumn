@@ -32,7 +32,7 @@ class ErrorAnalysisEvidenceTests(unittest.TestCase):
         flags = sum("judge_text_conflict" in case["tags"] for case in self.notes["cases"])
         self.assertEqual(flags, 6)
         self.assertEqual(self.summary["qualitative_tags_nonexclusive"]["judge_text_conflict"], flags)
-        self.assertIn("not six corrected scores", self.appendix)
+        self.assertFalse(self.summary["representative_case_recheck"]["scores_changed"])
         self.assertIn("All original scores and paired intervals are retained", self.appendix)
 
     def test_appendix_query_examples_belong_to_fixed_sample(self):
@@ -69,6 +69,16 @@ class ErrorAnalysisEvidenceTests(unittest.TestCase):
         self.assertEqual(len(re.split(r"(?<=[.!?])\s+", declaration)), 3)
         for phrase in ("OpenAI", "experiment", "EuroLLM via ELM", "authors", "responsible"):
             self.assertIn(phrase, declaration)
+
+    def test_main_body_explains_both_answer_and_judge_defects(self):
+        main = self.report.split(r"\bibliography{", 1)[0]
+        self.assertIn("company tax-loss", main)
+        self.assertIn("pension contribution limits", main)
+        self.assertIn("crisis-assets case", main)
+        self.assertIn(r"\emph{after} to \emph{during}", main)
+        self.assertIn("judge denies content actually", main)
+        self.assertIn("population", main)
+        self.assertIn("causal effects", main)
 
     def test_sample_flag_table_matches_recomputed_counts_and_limits(self):
         d = self.summary["descriptive_diagnostics"]

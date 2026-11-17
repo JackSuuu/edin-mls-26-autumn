@@ -350,23 +350,24 @@ it is \emph{not} measured audio-to-answer latency. The mean judge-score gain is
 On dev, attributed cost grows from 4.573 to 10.263~s while the answer-score
 gain remains uncertain.
 
-\textbf{What does zero mean?} Practice judge-zero fractions are 39.4\% for dense
-and 34.6\% for Qwen (Figure~\ref{fig:zero-scores}): 53 queries leave zero but
-36 enter it. All 700 answers are nonempty, finish with \texttt{stop}, and their
-scores match raw judge responses. Thus zeros are not empty-answer or parser
-fallback artifacts. In each arm, all three dimension-zero sets coincide.
-The judge's zero-filled JSON example is a possible, \emph{untested} anchoring
-risk, not an explanation established here. Gold-only judging is not human
-verification of complete answer failure.
+\textbf{Where the zero scores come from.} Practice judge-zero fractions are
+39.4\% for dense and 34.6\% for Qwen: 53 queries leave zero and 36 enter it
+(Figure~\ref{fig:zero-scores}). All 700 answers are nonempty, finish with
+\texttt{stop}, and have scores matching the raw judge responses.
+This locates the zeros in the judge's decisions rather than empty outputs or
+parser fallbacks. The three dimension-zero sets also coincide in each arm,
+raising a calibration question examined in Appendix~\ref{app:error-analysis}.
 
-\textbf{Evidence use versus evaluation.} Thirty Qwen zeros include all gold IDs.
-A fixed-seed sample of 20 zeros has overlapping flags for reference alignment
-(12), evidence use (9) and judge-text conflict (6). Case evidence status is
-3 author-confirmed, 9 possible and 8 ambiguous: this is not a completed
-20-case human error audit or a population estimate.
-The pension example applies a \emph{company tax-loss} statement to contribution
-limits despite both gold documents being present. Such evidence supports
-descriptive hypotheses, not confirmed causes or corrected scores
+\textbf{How evidence use and judging fail.} Thirty Qwen zeros include all gold IDs.
+In 20 sampled zeros, reference alignment is flagged most often (12), followed
+by evidence use (9) and judge-text conflict (6). The pension answer turns a
+\emph{company tax-loss} rule into a claim about pension contribution limits.
+In the crisis-assets case, the answer shifts gold/silver's usefulness from
+\emph{after} to \emph{during} the crisis, while the judge denies content actually
+present in gold. Answer defects and judge misreadings can therefore coexist.
+The review records 3 author-confirmed, 9 possible and 8 ambiguous case observations.
+Overlapping flags describe this score-conditioned sample, rather than population
+rates or causal effects
 (Appendix~\ref{app:error-analysis}).
 
 \begin{figure}[t]
@@ -412,16 +413,17 @@ Appendix~\ref{app:asr-answers}.
 \section{Discussion and Conclusion}
 \label{sec:conclusion}
 
-\textbf{What the controls establish.} CUDA correctness does not imply acceleration;
-profiling locates the linear bottleneck. Larger context/candidate pools do not
-establish better answers. Matched-text Qwen supports stronger selection on
-practice, not an isolated parameter-count effect.
+\textbf{What the controls explain.} Profiling locates the custom ASR's performance
+bottleneck in linear kernels. For RAG, added context raises coverage without a
+detectable answer-score gain, while larger candidate pools leave MiniLM's
+selection weakness unresolved. Matched-text Qwen improves practice scores at
+similar input length, supporting evidence selection as a useful lever.
 
-\textbf{What remains unresolved.} Scope substitution motivates an interference
-hypothesis, not a demonstrated snippet remedy or population mechanism rate.
-Judge-text conflicts and synchronous zeros flag measurement limitations;
-they neither vindicate every low-scoring answer nor invalidate all comparisons.
-Original scores and paired intervals remain unchanged.
+\textbf{What the cases explain.} Source tracing separates misapplied evidence
+from judge misreadings and shows how both can occur in one answer. This helps
+explain the gap between document coverage and judged answer quality.
+The cases support checking applicability and evaluation fidelity; they leave
+the prevalence and causal contribution of each mechanism open.
 
 \textbf{When is the cost justified?} The added attributed delay may be problematic
 for interactive voice use, whereas offline QA may tolerate it for the observed
@@ -429,11 +431,10 @@ score gain. Neither a user latency target nor a quality-to-delay utility was
 measured, so no configuration is universally preferable.
 Qwen 0.6B has no downstream answer evaluation.
 
-\textbf{Stopping rule.} We stop configuration search. A new intervention must
-answer an unresolved hypothesis and remain informative without a score gain.
+\textbf{Research scope.} We stop configuration search here.
 Our descriptive claims do not require a new snippet experiment.
-Any future causal test must preserve conditions and separate content from
-length effects; gold-aware extraction is oracle. No snippet benefit is claimed.
+Further interventions should answer an unresolved hypothesis and remain
+informative without a score gain.
 
 \textbf{Limits of the evidence.} Qwen was selected on practice and then frozen
 for a new run on the previously inspected dev set, not an untouched independent
