@@ -303,28 +303,11 @@ over 4B matched. Thus its main gain cannot simply be attributed to reading more
 document text; checkpoint choice matters. This does not isolate parameter count
 from architecture, training, tokenizer, instruction or precision.
 
-\begin{table}[t]
-\centering
-\small
-\caption{Fresh paired practice answer experiment (350 queries/arm), not the
-initial five-arm run. Score: normalised judge mean; tokens: mean server input;
-generation: median ms; attributed cost: mean selection-plus-generation seconds.}
-\label{tab:qwen-answers}
-\begin{tabular}{@{}lrrrr@{}}
-\toprule
-Evidence & Score & Tokens & Generation ms & Attributed s \\
-\midrule
-Fresh dense5 & .3374 & 1290 & 4336 & 4.757 \\
-Qwen 4B matched5 & .3819 & 1267 & 5035 & 10.779 \\
-\bottomrule
-\end{tabular}
-\end{table}
-
 \textbf{Answer-score benefit at similar input length.} With unchanged generator,
 prompt and record count, 4B-selected evidence raises the mean score from
 0.3374 to 0.3819: paired $\Delta=0.0445$, 95\% interval $[0.0112,0.0788]$;
 115 queries improve, 80 decline and 155 tie. Input length is similar
-(1290 versus 1267 tokens; Table~\ref{tab:qwen-answers}).
+(1290 versus 1267 tokens; full cost table in Appendix~\ref{app:qwen}).
 This is positive downstream evidence for selection, not for simply adding
 context. The comparator is this run's \emph{fresh} dense5, not the earlier 0.327.
 The score is not percent-correct, and the same-model generator/judge, incomplete
@@ -333,10 +316,23 @@ qrels and one-shot stochastic outputs limit interpretation.
 \textbf{Cost and failures.} The 4B reranker costs a median 5.823~s/query.
 Mean attributed selection-plus-generation cost rises from 4.757 to 10.779~s,
 combining rerank measurements from the preceding GPU run with current generation;
-it is \emph{not} measured audio-to-answer latency. Judged all-zero answers remain
+it is \emph{not} measured audio-to-answer latency. The mean judge-score gain is
+13.2\% relative, while attributed cost increases 126.6\%, or 6.022~s
+(Figure~\ref{fig:quality-cost}). These percentages are not a common utility scale.
+Judged all-zero answers remain
 121/350 with 4B versus 138/350 for fresh dense5. Better aggregate retrieval
 does not guarantee a better answer on each query, and no 0.6B answer comparison
 was run.
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=.95\linewidth]{figures/qwen-quality-cost.pdf}
+\caption{Two observed practice operating points (350 queries). Full 0--1
+judge-score axis; horizontal values are mean attributed stage costs, not
+measured audio-to-answer latency. The paired score-difference interval is
+reported in the text; no per-arm or timing intervals are implied.}
+\label{fig:quality-cost}
+\end{figure}
 
 \textbf{ASR--RAG connection.} On 30 questions, custom/reference ASR transcripts
 have zero differences and identical downstream recall. A separate 10-question
@@ -434,9 +430,18 @@ context, but at substantial additional latency. This is a positive
 quality--cost trade-off, not a general claim that reranking fails or that bigger
 models necessarily help.
 
+\textbf{When is the cost justified?} The added attributed delay may be problematic
+for interactive voice use, whereas offline QA may tolerate it for the observed
+score gain. Neither a user latency target nor a quality-to-delay utility was
+measured, so no configuration is universally preferable.
+Qwen 0.6B is a lower-cost \emph{retrieval} option, not an established better
+end-to-end trade-off: its downstream answers were not evaluated.
+
 \textbf{Limits of the evidence.} Qwen is a practice-only exploratory extension
 with no independent held-out validation; the old dev results validate only the
-old methods. Unadjusted query bootstrap excludes adaptive model selection and
+old methods. A new validation would require unseen, unused queries and a frozen
+4B configuration; reusing an already inspected dev set would not remove
+model-selection bias. Unadjusted query bootstrap excludes adaptive model selection and
 repeated-generation/judge uncertainty. Qrels can be incomplete; selected-ID
 recall can credit a truncated document without its useful span. Same-model
 generation/judging and observed judge inconsistencies limit quality claims.
@@ -529,6 +534,12 @@ Protocols and full tables:
 Offline audits:
 \path{rag/extensions/audit_qwen_retrieval.py},
 \path{rag/extensions/audit_qwen_answers.py}.
+\item Quality--cost figure and arithmetic:
+\path{report/plot_quality_cost.py},
+\path{report/latex_template/figures/qwen-quality-cost.pdf} and
+\path{rag/results/report-quality-cost/summary.json}.
+The script reads the fresh answer comparison, preserves the full score axis,
+and uses no model or API calls.
 \end{itemize}
 To recompute summaries only, without invoking generation or judge:
 \begin{verbatim}
@@ -618,6 +629,23 @@ These retrieval-level results do not establish answer-quality or deployment gain
 
 \section{Qwen controls and provenance}
 \label{app:qwen}
+\begin{table}[ht]
+\centering
+\small
+\caption{Fresh paired practice answer experiment (350 queries/arm), not the
+initial five-arm run. Score: normalised judge mean; tokens: mean server input;
+generation: median ms; attributed cost: mean selection-plus-generation seconds.}
+\label{tab:qwen-answers}
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+Evidence & Score & Tokens & Generation ms & Attributed s \\
+\midrule
+Fresh dense5 & .3374 & 1290 & 4336 & 4.757 \\
+Qwen 4B matched5 & .3819 & 1267 & 5035 & 10.779 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 The Qwen phase uses
 \path{rag/results/diagnostic-retrieval-3713758/rankings.jsonl}.
 It has the same transcripts as the initial five-arm phase, but is a separately
@@ -658,7 +686,7 @@ costs. ASR and initial retrieval were cached, not timed in that answer experimen
 % or to complete other tasks. In all cases, you remain entirely responsible
 % for the material you produce.
 \section*{AI declaration}
-AI coding assistants (including Cursor/ELM) were used to help run and organise
+OpenAI coding assistance was used to help run and organise
 GPU/RAG experiments, derive bandwidth and cost summaries, analyse saved
 dev-validation results, and draft/edit LaTeX text for this report. During this
 revision, an OpenAI coding agent reran the default ASR checks, recomputed saved
@@ -667,7 +695,9 @@ measurements against repository artifacts. The agent also implemented and ran
 the exploratory practice-only L6/L12 retrieval comparison and audited its saved
 metrics, without new answer generation or judging. In the Qwen integration
 revision it audited saved retrieval and answer/judge artifacts and edited the
-report; it did not rerun models or API calls. This describes automated checks, not
+report; it did not rerun models or API calls. It also generated the quality--cost
+plot directly from saved means and checked the relative-cost arithmetic.
+This describes automated checks, not
 an assertion that the authors independently verified every number. Final author
 review remains outstanding. The group remains
 responsible for the submitted work.
