@@ -1,0 +1,22 @@
+{
+  "started_at": "2026-11-17T14:05:32.677031+00:00",
+  "completed_stages": [
+    "retrieval-smoke",
+    "retrieval-full",
+    "retrieval-offline-audit",
+    "prepare-fresh-answer-plans",
+    "generation-smoke",
+    "extract-smoke",
+    "judge-smoke",
+    "generation-full",
+    "judge-full",
+    "summarise",
+    "offline-audit"
+  ],
+  "run": "/home/jacksu/edin-mls-26-autumn/rag/results/qwen4-dev-validation-20261117-v1",
+  "pid": 1280465,
+  "state": "completed",
+  "updated_at": "2026-11-17T14:47:46.307377+00:00",
+  "stage": "offline-audit",
+  "completed_at": "2026-11-17T14:47:46.307375+00:00"
+}

@@ -24,6 +24,13 @@ and latency separately.
   350-query paired experiment and its earlier labelled checkpoint.
 - [audit_qwen_answers.py](audit_qwen_answers.py): verify all 700 saved answers,
   judge cache keys, raw judgements, score means and paired intervals offline.
+- [run_qwen_dev_validation.py](run_qwen_dev_validation.py): explicitly authorized
+  frozen 4B matched/dev validation with fresh dense/Qwen answers, staged smoke
+  checks, run locking, source/input snapshots and offline audits. The completed
+  [dev protocol/results](../experiments/QWEN_DEV_VALIDATION.md) distinguish
+  replicated retrieval gains from the answer interval that still includes zero.
+  This is previously inspected dev, not an untouched test set; do not rerun it
+  to seek significance.
 
 From the repository root, the published retrieval data supports these offline
 checks without model downloads or ELM calls:

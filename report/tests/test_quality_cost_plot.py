@@ -51,6 +51,18 @@ class QualityCostTests(unittest.TestCase):
             with self.assertRaises(AssertionError):
                 plot.extract(source)
 
+    def test_dev_negative_interval_endpoint_is_preserved(self):
+        source = fixture()
+        source["split"] = "dev"
+        source["queries"] = 125
+        interval = [-0.0006666666666666612, 0.11266666666666666]
+        source["paired_qwen4_minus_dense"]["normalised_answer_score"]["query_bootstrap_95pct_interval"] = interval
+        result = plot.extract(source)
+        self.assertEqual(result["split"], "dev")
+        self.assertEqual(result["queries"], 125)
+        self.assertEqual(result["paired_score_delta"]["query_bootstrap_95pct_interval"], interval)
+        self.assertLess(result["paired_score_delta"]["query_bootstrap_95pct_interval"][0], 0)
+
 
 if __name__ == "__main__":
     unittest.main()

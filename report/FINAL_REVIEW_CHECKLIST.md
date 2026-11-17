@@ -2,15 +2,18 @@
 
 ## This revision
 
-- Adds the two-point quality/cost figure from the **fresh paired** practice
-  answer experiment; no earlier dense score is mixed in.
-- Reports +13.2% mean judge score versus +126.6% **attributed** stage cost
-  (+6.022 seconds), not measured audio-to-answer latency or a utility ratio.
+- Adds separate practice/dev quality-cost panels from **fresh paired** answer
+  experiments; no old dense score or pooled split comparison is substituted.
+- Reports practice +13.2% mean judge score versus +126.6% **attributed** stage cost
+  (+6.022 seconds), and dev means +18.1% versus +124.4% cost. Dev's answer interval
+  includes zero; none of these are accuracy gains, measured audio-to-answer
+  latency, or a utility ratio.
 - Discusses interactive voice versus offline QA as conditional use cases, not
   measured user preferences or a universal accept/reject threshold.
 - Does not put Qwen 0.6B on an answer-quality frontier: its downstream answers
   have not been evaluated.
-- Does not run any new inference, generation, judge or dev experiment.
+- Incorporates the explicitly authorized dev run completed on 2026-11-17,
+  with no score-based rerun/retuning. Updating the report makes no new calls.
 
 ## Automated checks (not a substitute for the authors)
 
@@ -24,11 +27,18 @@
 - Check citation-key resolution, `[?]`, the selected question quotations,
   evidence paths, official style integrity and the six-page body limit.
 
-Latest outcome (2026-11-17): 25 tracked RAG tests and 4 new plot-arithmetic
-tests passed. PDF checker PASS, main body six pages, no `[?]`; the figure,
-tables and displayed question answers were visually inspected by the agent.
-All six citation keys resolve and all 51 listed evidence paths are tracked.
-These outcomes do not mark any author-sign-off checkbox below as complete.
+Before the dev integration, 25 tracked RAG tests and 4 plot-arithmetic tests
+passed, with a six-page/PASS PDF. The new revision adds dev-split, input-integrity
+and negative-interval endpoint tests and reruns the checks. None of these
+automated outcomes marks any author-sign-off checkbox below as complete.
+
+Latest dev-integration checks: **31 tracked RAG tests + 5 plot tests passed**;
+both dev offline audits were rerun without model/API calls. PDF checker PASS,
+main body six pages, no `[?]`, all 58 evidence paths tracked. Fresh split-specific
+table values and the preserved initial table were matched against JSON; the
+figure, tables and dev uncertainty wording were visually inspected by the agent.
+For author review: fresh results Table 1 on page 3, dev result paragraph on
+page 4, practice/dev figure on page 5, Discussion on page 6.
 
 ## Required author review — still outstanding
 
@@ -50,7 +60,10 @@ These outcomes do not mark any author-sign-off checkbox below as complete.
 
 ## Optional P2: genuinely new held-out validation
 
-No such experiment is run in this revision. Before authorizing one:
+A frozen configuration has now been checked on the old inspected dev set.
+It is not genuinely new held-out data: retrieval improves, but the downstream
+answer interval is [-0.0007, 0.1127]. No rerun was used to seek significance.
+For a genuinely new independent test, still:
 
 1. Identify new, unused queries not involved in selecting Qwen, rewriting rules,
    or examining failures. The old inspected dev set is not a fresh untouched set.
@@ -59,5 +72,5 @@ No such experiment is run in this revision. Before authorizing one:
 3. Confirm data access, qrels/reference evidence, GPU and API/judge budget.
 4. Evaluate all chosen queries, retaining regressions, with no score-driven tuning.
 
-If that data/resource access is unavailable, retain the explicit practice-only
-exploratory limitation rather than relabeling old data as independent validation.
+If that data/resource access is unavailable, retain the explicit inspected-dev
+qualification rather than relabeling old data as independent validation.

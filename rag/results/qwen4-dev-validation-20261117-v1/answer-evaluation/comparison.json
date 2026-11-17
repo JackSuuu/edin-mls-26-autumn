@@ -1,0 +1,80 @@
+{
+  "queries": 125,
+  "split": "dev",
+  "completed": true,
+  "arms": {
+    "dense5": {
+      "mean_correctness": 1.336,
+      "mean_grounding": 1.36,
+      "mean_completeness": 1.064,
+      "mean_normalised_answer_score": 0.31333333333333335,
+      "mean_local_input_tokens": 1209.048,
+      "server_usage_coverage": 125,
+      "mean_server_input_tokens": 1209.048,
+      "mean_generation_ms": 4571.115991517901,
+      "median_generation_ms": 4621.710825711489,
+      "mean_attributed_selection_plus_generation_ms": 4572.712252989411
+    },
+    "qwen4_matched5": {
+      "mean_correctness": 1.56,
+      "mean_grounding": 1.584,
+      "mean_completeness": 1.296,
+      "mean_normalised_answer_score": 0.37,
+      "mean_local_input_tokens": 1245.16,
+      "server_usage_coverage": 125,
+      "mean_server_input_tokens": 1245.16,
+      "mean_generation_ms": 4640.683231189847,
+      "median_generation_ms": 4988.398030400276,
+      "mean_attributed_selection_plus_generation_ms": 10263.043689250946
+    }
+  },
+  "paired_qwen4_minus_dense": {
+    "correctness": {
+      "mean_delta": 0.224,
+      "query_bootstrap_95pct_interval": [
+        -0.008,
+        0.448
+      ],
+      "improved": 30,
+      "worse": 20,
+      "tied": 75
+    },
+    "grounding": {
+      "mean_delta": 0.224,
+      "query_bootstrap_95pct_interval": [
+        -0.032,
+        0.472
+      ],
+      "improved": 36,
+      "worse": 25,
+      "tied": 64
+    },
+    "completeness": {
+      "mean_delta": 0.232,
+      "query_bootstrap_95pct_interval": [
+        0.0,
+        0.464
+      ],
+      "improved": 36,
+      "worse": 28,
+      "tied": 61
+    },
+    "normalised_answer_score": {
+      "mean_delta": 0.056666666666666664,
+      "query_bootstrap_95pct_interval": [
+        -0.0006666666666666612,
+        0.11266666666666666
+      ],
+      "improved": 40,
+      "worse": 30,
+      "tied": 55
+    }
+  },
+  "limitations": [
+    "Previously inspected dev; frozen-config validation, not untouched holdout",
+    "One generation and one judge call per answer",
+    "Same model generates and judges; public qrel evidence is not exhaustive",
+    "Query bootstrap excludes generation/judge rerun uncertainty",
+    "Attributed rerank cost is not measured end-to-end latency"
+  ]
+}

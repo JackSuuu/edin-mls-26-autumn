@@ -94,10 +94,11 @@ candidate pool can improve answers without greatly increasing generation context
 An initial five-arm study covers 350 practice and 125 held-out dev queries:
 more context raises coverage without a detectable answer-score gain, while
 MiniLM reranking loses coverage. Candidate-pool and L12 controls locate a selector
-limitation. A subsequent exploratory, practice-only Qwen comparison improves
-ranking; a fresh paired answer experiment then observes higher judge scores with
-similar input length, at substantial reranking cost. Dev was not used to tune
-methods and does not validate the later Qwen extension.
+limitation. An exploratory Qwen extension improves practice ranking and paired
+answer scores at substantial cost. A subsequent frozen-configuration check on
+the previously inspected dev set replicates retrieval gains, but its positive
+mean answer-score difference remains uncertain. Dev is not used to retune Qwen;
+this is not a newly collected or untouched independent test.
 
 The selected ASR answers are Task 1, Question 1 (Section~\ref{sec:q1}),
 Task 2, Question 3 (Section~\ref{sec:q2}), Task 3, Question 2
@@ -202,13 +203,16 @@ Qwen tokens including its template. Official instructions and descending
 tokenizers, architectures and training also differ, so this is not a size-only
 ablation. The Qwen phase has its own frozen dense ranking cache.
 
-\textbf{Downstream paired check (practice):} fresh \texttt{dense5} and
+\textbf{Fresh paired answers and frozen dev check:} fresh \texttt{dense5} and
 \texttt{qwen4\_matched5} answers use the same generator, temperature, prompt and
 five full-text records, without truncation; only records/order differ.
 Arm execution order is shuffled per question. One generation and one JSON-mode
 judge call are made per answer; Qwen intervals use 2,000 paired query resamples.
 All intervals are unadjusted and exclude repeated-generation/judge and adaptive
-model-selection uncertainty. No new dev inference, generation or judging is used.
+model-selection uncertainty. After explicit authorization, the selected 4B
+matched configuration is frozen and evaluated on all 125 previously inspected dev
+queries, with new answers and judgements for both arms. No long-context/model
+search, score-based stopping or retuning follows the dev results.
 
 \section{Results and Analysis}
 \label{sec:results}
@@ -218,28 +222,28 @@ The practice retrieval baseline has Recall@5 of 0.421 versus Recall@100 of 0.770
 (350 queries; \texttt{baseline-3713067.md}). This gap indicates that relevant
 documents often occur below the initial evidence cutoff, motivating evidence
 selection from a deeper candidate pool under a limited context budget.
-Table~\ref{tab:rag-dev} compares the initial practice/dev study, using enc\_a
-embeddings~\cite{reimers2019sbert} and ELM EuroLLM~\cite{martins2024eurollm}.
+The initial practice/dev study uses enc\_a embeddings~\cite{reimers2019sbert}
+and ELM EuroLLM~\cite{martins2024eurollm}; its full table is in
+Appendix~\ref{app:initial-paired}.
 
 \begin{table}[t]
 \centering
 \small
-\setlength{\tabcolsep}{3pt}
-\caption{Initial study: practice (350) and held-out dev (125), one generation/judge per answer.
-Ans.: mean normalised judge score; Rec.: mean selected-ID qrel recall;
-Tok.: mean input tokens; Gen.: median API generation ms.}
-\label{tab:rag-dev}
-\begin{tabular}{@{}lrrrrrrrr@{}}
+\setlength{\tabcolsep}{4pt}
+\caption{Fresh Qwen answer comparisons: practice (350) and inspected dev (125),
+separate within-split controls. R5: Recall@5; score: judge mean; tokens: mean
+server input; generation: median ms; attributed cost: mean stage seconds,
+not measured audio-to-answer latency.}
+\label{tab:qwen-answers}
+\begin{tabular}{@{}llrrrrr@{}}
 \toprule
-& \multicolumn{4}{c}{Practice} & \multicolumn{4}{c}{Dev} \\
-\cmidrule(lr){2-5}\cmidrule(l){6-9}
-Arm & Ans. & Rec. & Tok. & Gen. & Ans. & Rec. & Tok. & Gen. \\
+Split & Selector & R5 & Score & Tokens & Gen. ms & Attr. s \\
 \midrule
-\texttt{dense5}         & .327 & .421 & 1290 & 3655 & .331 & .379 & 1209 & 4532 \\
-\texttt{dense20}        & .326 & .579 & 4984 & 4830 & .331 & .580 & 4948 & 5871 \\
-\texttt{rerank5}        & .314 & .388 & 1435 & 3867 & .309 & .333 & 1470 & 4365 \\
-\texttt{dense\_budget}  & .325 & .548 & 4096 & 4875 & .328 & .566 & 4096 & 5672 \\
-\texttt{rerank\_budget} & .318 & .514 & 4096 & 4500 & .283 & .476 & 4096 & 5485 \\
+Practice & Dense5 & .4213 & .3374 & 1290 & 4336 & 4.757 \\
+& Qwen 4B & .5262 & .3819 & 1267 & 5035 & 10.779 \\
+\midrule
+Dev & Dense5 & .3795 & .3133 & 1209 & 4622 & 4.573 \\
+& Qwen 4B & .4568 & .3700 & 1245 & 4988 & 10.263 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -307,18 +311,30 @@ from architecture, training, tokenizer, instruction or precision.
 prompt and record count, 4B-selected evidence raises the mean score from
 0.3374 to 0.3819: paired $\Delta=0.0445$, 95\% interval $[0.0112,0.0788]$;
 115 queries improve, 80 decline and 155 tie. Input length is similar
-(1290 versus 1267 tokens; full cost table in Appendix~\ref{app:qwen}).
+(1290 versus 1267 tokens; Table~\ref{tab:qwen-answers}).
 This is positive downstream evidence for selection, not for simply adding
 context. The comparator is this run's \emph{fresh} dense5, not the earlier 0.327.
 The score is not percent-correct, and the same-model generator/judge, incomplete
 qrels and one-shot stochastic outputs limit interpretation.
 
-\textbf{Cost and failures.} The 4B reranker costs a median 5.823~s/query.
+\textbf{Frozen dev check: retrieval replicates, answer benefit remains uncertain.}
+On 125 previously inspected dev queries, 4B raises Recall@5 from 0.3795 to
+0.4568: $\Delta=0.0773$, 95\% interval $[0.0200,0.1339]$.
+MRR/NDCG gains also exclude zero (Appendix~\ref{app:qwen-dev}).
+Fresh answer scores are 0.3133 versus 0.3700:
+$\Delta=0.0567$, interval $[-0.0007,0.1127]$; 40 improve, 30 decline, 55 tie.
+This interval \emph{includes zero}; its positive mean is directionally consistent
+with practice, not confirmation of a dev answer-quality gain. No rerun is used
+to seek significance, and the fresh baseline is not the old dev score.
+
+\textbf{Cost and failures.} On practice, the 4B reranker costs a median 5.823~s/query.
 Mean attributed selection-plus-generation cost rises from 4.757 to 10.779~s,
 combining rerank measurements from the preceding GPU run with current generation;
 it is \emph{not} measured audio-to-answer latency. The mean judge-score gain is
 13.2\% relative, while attributed cost increases 126.6\%, or 6.022~s
 (Figure~\ref{fig:quality-cost}). These percentages are not a common utility scale.
+On dev, attributed cost grows from 4.573 to 10.263~s while the answer-score
+gain remains uncertain.
 Judged all-zero answers remain
 121/350 with 4B versus 138/350 for fresh dense5. Better aggregate retrieval
 does not guarantee a better answer on each query, and no 0.6B answer comparison
@@ -327,10 +343,10 @@ was run.
 \begin{figure}[t]
 \centering
 \includegraphics[width=.95\linewidth]{figures/qwen-quality-cost.pdf}
-\caption{Two observed practice operating points (350 queries). Full 0--1
-judge-score axis; horizontal values are mean attributed stage costs, not
-measured audio-to-answer latency. The paired score-difference interval is
-reported in the text; no per-arm or timing intervals are implied.}
+\caption{Fresh practice/dev comparisons, not pooled. Full 0--1 score axes;
+horizontal values are attributed stage costs, not measured audio-to-answer
+latency. Paired score-difference intervals are annotated, not per-arm/timing
+error bars; the dev interval includes zero.}
 \label{fig:quality-cost}
 \end{figure}
 
@@ -424,11 +440,11 @@ system acceleration; profiling and library comparisons locate the cost.
 \textbf{Quantity versus selection quality.} Answer-score intervals include zero
 in the \emph{initial five-arm comparisons}, not in every subsequent experiment.
 More documents and larger MiniLM candidate pools do not solve evidence selection.
-The matched-text Qwen comparison and fresh paired answers show that a different
-selector can improve observed answer scores without expanding average generation
-context, but at substantial additional latency. This is a positive
-quality--cost trade-off, not a general claim that reranking fails or that bigger
-models necessarily help.
+Matched-text Qwen improves practice answer scores without expanding average
+generation context, at substantial cost. Retrieval gains replicate on the
+inspected dev set; its answer-score mean moves in the same direction but its
+interval includes zero. Evidence for a downstream benefit is stronger on practice
+than on dev, not a universal claim that bigger selectors help.
 
 \textbf{When is the cost justified?} The added attributed delay may be problematic
 for interactive voice use, whereas offline QA may tolerate it for the observed
@@ -437,11 +453,10 @@ measured, so no configuration is universally preferable.
 Qwen 0.6B is a lower-cost \emph{retrieval} option, not an established better
 end-to-end trade-off: its downstream answers were not evaluated.
 
-\textbf{Limits of the evidence.} Qwen is a practice-only exploratory extension
-with no independent held-out validation; the old dev results validate only the
-old methods. A new validation would require unseen, unused queries and a frozen
-4B configuration; reusing an already inspected dev set would not remove
-model-selection bias. Unadjusted query bootstrap excludes adaptive model selection and
+\textbf{Limits of the evidence.} Qwen was selected on practice and then frozen
+for a new run on the previously inspected dev set, not an untouched independent
+test. Genuine independent validation still requires unused queries.
+Unadjusted query bootstrap excludes adaptive model selection and
 repeated-generation/judge uncertainty. Qrels can be incomplete; selected-ID
 recall can credit a truncated document without its useful span. Same-model
 generation/judging and observed judge inconsistencies limit quality claims.
@@ -452,8 +467,9 @@ cost measurements do not provide a matched audio-to-answer benchmark.
 
 \textbf{Conclusion.} Component choice changes both final quality and cost.
 Our experiments locate a CUDA performance bottleneck and an evidence-selection
-limitation, then show a more effective selector's downstream benefit and added
-cost. Optimisation should target final quality and latency, not correctness,
+limitation. Qwen retrieval gains persist on dev, while downstream evidence is
+positive on practice and uncertain on dev, with substantial added cost.
+Optimisation should target final quality and latency, not correctness,
 model size or evidence quantity in isolation.
 
 % References are excluded from the main-body page limit.
@@ -478,8 +494,8 @@ make clean && make && make test
 
 \section{Committed evidence and reproduction record}
 All paths below are repository-relative. Initial five-arm raw answers/judgements
-remain local; the later Qwen experiment includes committed raw outputs and audits.
-No dev generation or judging was repeated during report revision.
+remain local; Qwen practice and newly authorized dev runs include committed
+outputs and audits. Old dev outputs were not overwritten or reused as fresh answers.
 \begin{itemize}
 \item ASR unit tests, throughput and all-CUDA profile:
 \path{hw1-asr/results/cuda-submit-logs/make-test-and-profile.log}.
@@ -534,11 +550,19 @@ Protocols and full tables:
 Offline audits:
 \path{rag/extensions/audit_qwen_retrieval.py},
 \path{rag/extensions/audit_qwen_answers.py}.
+\item Frozen Qwen dev verification:
+\path{rag/experiments/QWEN_DEV_VALIDATION.md},
+\path{rag/extensions/run_qwen_dev_validation.py},
+\path{rag/results/qwen4-dev-validation-20261117-v1/protocol.json},
+\path{rag/results/qwen4-dev-validation-20261117-v1/retrieval/summary.json},
+\path{rag/results/qwen4-dev-validation-20261117-v1/retrieval/offline-audit.json},
+\path{rag/results/qwen4-dev-validation-20261117-v1/answer-evaluation/comparison.json},
+\path{rag/results/qwen4-dev-validation-20261117-v1/answer-evaluation/offline-audit.json}.
 \item Quality--cost figure and arithmetic:
 \path{report/plot_quality_cost.py},
 \path{report/latex_template/figures/qwen-quality-cost.pdf} and
 \path{rag/results/report-quality-cost/summary.json}.
-The script reads the fresh answer comparison, preserves the full score axis,
+The script reads both fresh answer comparisons separately, preserves the full score axes,
 and uses no model or API calls.
 \end{itemize}
 To recompute summaries only, without invoking generation or judge:
@@ -555,6 +579,29 @@ python3 rag/extensions/audit_report_evidence.py
 \section{Initial paired scores and judge diagnostics}
 \label{app:initial-paired}
 These contrasts are from the initial five-arm experiment only.
+\begin{table}[ht]
+\centering
+\small
+\setlength{\tabcolsep}{3pt}
+\caption{Initial five-arm study: practice (350) and old dev (125).
+Ans.: judge mean; Rec.: selected-ID recall; Tok.: mean input tokens;
+Gen.: median generation ms. These are not the later fresh Qwen controls.}
+\label{tab:rag-dev}
+\begin{tabular}{@{}lrrrrrrrr@{}}
+\toprule
+& \multicolumn{4}{c}{Practice} & \multicolumn{4}{c}{Dev} \\
+\cmidrule(lr){2-5}\cmidrule(l){6-9}
+Arm & Ans. & Rec. & Tok. & Gen. & Ans. & Rec. & Tok. & Gen. \\
+\midrule
+\texttt{dense5}         & .327 & .421 & 1290 & 3655 & .331 & .379 & 1209 & 4532 \\
+\texttt{dense20}        & .326 & .579 & 4984 & 4830 & .331 & .580 & 4948 & 5871 \\
+\texttt{rerank5}        & .314 & .388 & 1435 & 3867 & .309 & .333 & 1470 & 4365 \\
+\texttt{dense\_budget}  & .325 & .548 & 4096 & 4875 & .328 & .566 & 4096 & 5672 \\
+\texttt{rerank\_budget} & .318 & .514 & 4096 & 4500 & .283 & .476 & 4096 & 5485 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \begin{center}
 \small
 \setlength{\tabcolsep}{4pt}
@@ -629,23 +676,6 @@ These retrieval-level results do not establish answer-quality or deployment gain
 
 \section{Qwen controls and provenance}
 \label{app:qwen}
-\begin{table}[ht]
-\centering
-\small
-\caption{Fresh paired practice answer experiment (350 queries/arm), not the
-initial five-arm run. Score: normalised judge mean; tokens: mean server input;
-generation: median ms; attributed cost: mean selection-plus-generation seconds.}
-\label{tab:qwen-answers}
-\begin{tabular}{@{}lrrrr@{}}
-\toprule
-Evidence & Score & Tokens & Generation ms & Attributed s \\
-\midrule
-Fresh dense5 & .3374 & 1290 & 4336 & 4.757 \\
-Qwen 4B matched5 & .3819 & 1267 & 5035 & 10.779 \\
-\bottomrule
-\end{tabular}
-\end{table}
-
 The Qwen phase uses
 \path{rag/results/diagnostic-retrieval-3713758/rankings.jsonl}.
 It has the same transcripts as the initial five-arm phase, but is a separately
@@ -673,6 +703,45 @@ completeness $0.1743$ $[0.0429,0.3086]$. Mean generation times are
 uses generation \emph{medians} and mean \emph{attributed} selection-plus-generation
 costs. ASR and initial retrieval were cached, not timed in that answer experiment.
 
+\section{Frozen Qwen dev verification}
+\label{app:qwen-dev}
+After practice model selection, one authorized run uses all 125 previously
+inspected dev questions, the existing ASR/dense candidates, the pinned 4B
+matched selector, and fresh generation/judging for both arms. There is no
+long-context/model search or score-dependent retuning. Two-query smoke answers
+and judge cache are reused within this new run, not added as extra observations.
+Across practice/dev, the Qwen comparisons therefore cover 475 distinct questions,
+950 generated answers and 950 judgements; no pooled answer-effect claim is made.
+This dev set is not newly collected or untouched.
+
+\begin{center}
+\small
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+Dev retrieval & Recall@5 & MRR@10 & NDCG@10 \\
+\midrule
+Dense & .379497 & .459708 & .398342 \\
+Qwen 4B matched & .456804 & .543873 & .482064 \\
+\bottomrule
+\end{tabular}
+\end{center}
+Dev MRR@10 difference is $0.0842$ $[0.0240,0.1440]$; NDCG@10 difference is
+$0.0837$ $[0.0396,0.1257]$. Dev answer dimension differences are correctness
+$0.224$ $[-0.008,0.448]$, grounding $0.224$ $[-0.032,0.472]$, and
+completeness $0.232$ $[0.000,0.464]$; none exclude zero.
+The normalised-score interval's exact lower endpoint is about $-0.000667$,
+not zero or a positive number. Forty answer scores improve, thirty worsen,
+and fifty-five tie; query resampling still allows a zero mean benefit.
+An interval including zero neither proves no effect nor confirms improvement.
+
+Dev mean generation times are 4.571/4.641~s and median times 4.622/4.988~s
+for dense/Qwen. Qwen's median rerank time is 5.754~s. The observed mean answer
+score rises 18.1\% relative while attributed stage cost rises 124.4\%;
+these are not a common utility scale or measured audio-to-answer delay.
+Frozen inputs, code snapshots, new answers, judge caches/raw responses and
+the two offline audits are included with the run artifacts. No rerun is made
+to obtain an interval excluding zero.
+
 % Keep this line unchanged.
 \newpage
 
@@ -697,6 +766,10 @@ metrics, without new answer generation or judging. In the Qwen integration
 revision it audited saved retrieval and answer/judge artifacts and edited the
 report; it did not rerun models or API calls. It also generated the quality--cost
 plot directly from saved means and checked the relative-cost arithmetic.
+Following explicit authorization, it then set up and ran the frozen dev
+verification, including new answers and judging, and audited the resulting
+artifacts. The plot and report now distinguish practice/dev and retain the dev
+interval including zero.
 This describes automated checks, not
 an assertion that the authors independently verified every number. Final author
 review remains outstanding. The group remains

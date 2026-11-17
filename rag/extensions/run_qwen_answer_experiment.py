@@ -43,7 +43,7 @@ def indexed(rows):
     return result
 
 
-def build_plan(row, arm, records, count_tokens):
+def build_plan(row, arm, records, count_tokens, split="practice"):
     source = "dense" if arm == "dense5" else "qwen_matched"
     if arm not in ARMS:
         raise ValueError("Unknown arm")
@@ -52,7 +52,7 @@ def build_plan(row, arm, records, count_tokens):
                            count_tokens, top_k=5)
     context_ms = (time.perf_counter() - start) * 1000
     return {"query_id": row["query_id"], "transcript": row["transcript"],
-            "split": "practice", "arm": arm, **built,
+            "split": split, "arm": arm, **built,
             "prompt_sha256": hashlib.sha256(built["prompt"].encode()).hexdigest(),
             "context_build_ms": context_ms,
             "cached_reranking_ms": row[source].get("rerank_ms", 0.0)}
@@ -64,15 +64,16 @@ def prepare(args):
     source_config = json.loads((args.rankings.parent / "config.json").read_text())
     source_summary = json.loads((args.rankings.parent / "summary.json").read_text())
     if (source_config["model"]["repo"] != "Qwen/Qwen3-Reranker-4B"
-            or not source_summary["completed"] or not source_summary["full_split"]):
-        raise ValueError("Require a completed full-practice Qwen-4B run")
+            or not source_summary["completed"] or not source_summary["full_split"]
+            or source_config["split"] != args.split):
+        raise ValueError(f"Require a completed full-{args.split} Qwen-4B run")
     corpus = ROOT / "rag/data/rag_corpus/corpus.jsonl"
     if digest(corpus) != source_config["input_sha256"]["corpus"]:
         raise ValueError("Corpus changed since reranking")
     data = CourseData(corpus.parent)
     rows = load_jsonl(args.rankings)
-    if set(indexed(rows)) != {r["query_id"] for r in data.audio_items("practice")}:
-        raise ValueError("Require exact practice query coverage")
+    if set(indexed(rows)) != {r["query_id"] for r in data.audio_items(args.split)}:
+        raise ValueError(f"Require exact {args.split} query coverage")
     from transformers import AutoTokenizer
     from src.generator import SYSTEM_PROMPT
     assets = ROOT / "rag/models/selection"
@@ -93,14 +94,14 @@ def prepare(args):
         order = list(ARMS)
         random.Random("qwen4-answer-v1:" + row["query_id"]).shuffle(order)
         for arm in order:
-            plan = build_plan(row, arm, data.records, count_tokens)
+            plan = build_plan(row, arm, data.records, count_tokens, split=args.split)
             if plan["local_input_tokens"] > 28672:
                 raise ValueError("Input exceeds preflight ceiling; no silent truncation")
             plans.append(plan)
     args.run.mkdir(parents=True)
     paths = [Path(__file__), ROOT / "rag/src/generator.py", ROOT / "rag/extensions/evidence_selection.py",
              ROOT / "rag/scripts/evaluate_answers.py", ROOT / "rag/src/evaluation/answer_judge.py"]
-    config = {"schema": "qwen4-paired-answers-v1", "arms": ARMS, "queries": len(rows),
+    config = {"schema": "qwen4-paired-answers-v1", "arms": ARMS, "queries": len(rows), "split": args.split,
               "query_ids": [r["query_id"] for r in rows], "generator_model": MODEL,
               "generation_temperature": 0.1, "judge_model": MODEL,
               "judge_json_mode": True, "judge_repeats": 1,
@@ -212,8 +213,11 @@ def smoke(args):
 
 def summarise(args):
     config, _ = check_plan(args.run)
-    result = {"queries": config["queries"], "completed": True, "arms": {}, "paired_qwen4_minus_dense": {},
-              "limitations": ["Practice exploratory comparison", "One generation and one judge call per answer",
+    split = config.get("split", "practice")
+    result = {"queries": config["queries"], "split": split, "completed": True, "arms": {}, "paired_qwen4_minus_dense": {},
+              "limitations": [("Previously inspected dev; frozen-config validation, not untouched holdout"
+                               if split == "dev" else "Practice exploratory comparison"),
+                              "One generation and one judge call per answer",
                               "Same model generates and judges; public qrel evidence is not exhaustive",
                               "Query bootstrap excludes generation/judge rerun uncertainty",
                               "Attributed rerank cost is not measured end-to-end latency"]}
@@ -225,7 +229,8 @@ def summarise(args):
         summary = json.loads((judge_dir / "answer_judge_summary.json").read_text())
         if (set(answers) != set(config["query_ids"]) or set(judged[arm]) != set(answers)
                 or summary["judge_model"] != MODEL or summary["judge_response_format"] != "json_object"
-                or summary["repeats"] != 1 or summary["is_subset"]):
+                or summary["repeats"] != 1 or summary["is_subset"]
+                or summary.get("split") != split):
             raise ValueError("Incomplete or incompatible generation/judging outputs")
         values = list(answers.values())
         tokens = [r["usage"]["prompt_tokens"] for r in values if r.get("usage") and r["usage"].get("prompt_tokens") is not None]
@@ -256,6 +261,8 @@ def main():
     ap.add_argument("--rankings", type=Path)
     ap.add_argument("--resume", action="store_true")
     ap.add_argument("--max-new-queries", type=int)
+    ap.add_argument("--split", choices=("practice", "dev"), default="practice",
+                    help="Preparation split; subsequent stages use the frozen config")
     args = ap.parse_args()
     if args.stage == "prepare" and args.rankings is None:
         ap.error("prepare requires --rankings")
