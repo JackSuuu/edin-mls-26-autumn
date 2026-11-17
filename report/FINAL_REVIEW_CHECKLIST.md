@@ -2,6 +2,10 @@
 
 ## This revision
 
+- Adds a reproducible vector system architecture diagram (Figure 1), showing
+  GPU/CPU/remote components, cached RAG inputs and offline-only evaluation.
+- Moves all four selected ASR answers unchanged into Appendix A, linked from
+  the introduction; core ASR results remain in the six-page main body.
 - Adds separate practice/dev quality-cost panels from **fresh paired** answer
   experiments; no old dense score or pooled split comparison is substituted.
 - Reports practice +13.2% mean judge score versus +126.6% **attributed** stage cost
@@ -32,13 +36,25 @@ passed, with a six-page/PASS PDF. The new revision adds dev-split, input-integri
 and negative-interval endpoint tests and reruns the checks. None of these
 automated outcomes marks any author-sign-off checkbox below as complete.
 
-Latest dev-integration checks: **31 tracked RAG tests + 5 plot tests passed**;
+Previous dev-integration checks: **31 tracked RAG tests + 5 plot tests passed**;
 both dev offline audits were rerun without model/API calls. PDF checker PASS,
 main body six pages, no `[?]`, all 58 evidence paths tracked. Fresh split-specific
 table values and the preserved initial table were matched against JSON; the
 figure, tables and dev uncertainty wording were visually inspected by the agent.
-For author review: fresh results Table 1 on page 3, dev result paragraph on
-page 4, practice/dev figure on page 5, Discussion on page 6.
+Latest architecture revision: **31 tracked RAG tests + 11 report tests passed**
+(5 plot arithmetic and 6 architecture tests). Compilation and PDF checker PASS:
+six-page main body, twelve pages total, no `[?]`. All 62 evidence paths exist
+and are staged/tracked; citation keys resolve including the ASR input file.
+Diagram implementation/source/PDF/PNG hashes match. The selected-answer input
+exactly matches the former main-body block. Official style is unchanged and
+review mode is retained. No models, generation or judging were run for this update.
+
+For author review: architecture Figure 1 on page 2, fresh results Table 1 on
+page 3, dev result paragraph on page 4, quality-cost Figure 2 and Discussion
+start on page 5, References on page 6, all four selected answers in Appendix A
+on page 7. Appendix starts on a fresh page. The agent visually inspected the
+title/architecture, fresh table, quality-cost figure and selected-answer layout;
+this is not independent author sign-off.
 
 ## Required author review — still outstanding
 

@@ -54,6 +54,8 @@
 \begin{document}
 
 \maketitle
+% Keep content floats from appearing above the report title on the first page.
+\suppressfloats[t]
 
 % Course-specific template fingerprint. Keep this line unchanged.
 \lhead{Under review as a report for UoE 26/27 Sem1 INFR11269: Machine Learning Systems}
@@ -100,7 +102,8 @@ the previously inspected dev set replicates retrieval gains, but its positive
 mean answer-score difference remains uncertain. Dev is not used to retune Qwen;
 this is not a newly collected or untouched independent test.
 
-The selected ASR answers are Task 1, Question 1 (Section~\ref{sec:q1}),
+All four selected ASR answers are collected in Appendix~\ref{app:asr-answers}:
+Task 1, Question 1 (Section~\ref{sec:q1}),
 Task 2, Question 3 (Section~\ref{sec:q2}), Task 3, Question 2
 (Section~\ref{sec:q3}), and Task 4, Question 1 (Section~\ref{sec:q4}).
 The Appendix maps measurements to committed evidence files.
@@ -108,10 +111,21 @@ The Appendix maps measurements to committed evidence files.
 \section{System and Technical Approach}
 \label{sec:approach}
 
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{figures/system-architecture.pdf}
+\caption{System/data-flow overview. Selection experiments reuse saved transcripts
+and candidate lists; qrels feed only offline evaluation. Rerank/API costs
+are stage-attributed, not a measured audio-to-answer latency.}
+\label{fig:architecture}
+\end{figure}
+
 \subsection{Supplied baseline}
 The homework provides \texttt{csrc/task*.cu} with numbered blanks,
 \texttt{launch\_*} grid configuration, CPU references in \texttt{tests/}, and
 \texttt{glm\_asr\_cuda/ops.py} which selects CUDA or PyTorch per kernel group.
+Figure~\ref{fig:architecture} locates these choices within the ASR--RAG pipeline,
+separating corpus-backed selection from offline retrieval/answer evaluation.
 
 \subsection{Task 1: RoPE kernel design}
 RoPE rotates pairs \((v[i], v[i+h])\) before attention, with $h=\mathrm{rotary\_dim}/2$:
@@ -174,7 +188,7 @@ per-kernel latency/GFLOP/s from tests and end-to-end ms/token with
 \texttt{make clean} when changing \texttt{NVCCFLAGS}, default
 \texttt{-O3 -std=c++17 -lineinfo -diag-suppress 177}. All reported ASR
 measurements use the fresh default build on otherwise idle GPU 1; analytical
-memory counts below are derived from the committed kernel code and test shapes.
+memory counts in Appendix~\ref{app:asr-answers} are derived from committed code/test shapes.
 
 \subsection{RAG evidence-selection study}
 \textbf{System:} practice/dev audio questions $\rightarrow$ ASR transcript
@@ -365,69 +379,11 @@ Thus all-CUDA execution takes about $3.8\times$ as long as the PyTorch baseline
 ($1986.1/521.3$), and is also slower than enabling only Task 1.
 The all-CUDA profile attributes 83.8\% to \texttt{linear} and 15.4\% to
 \texttt{attention}; encoder attention tests report 8.641~ms and 1333~GFLOP/s.
-The GEMM gap below identifies a concrete bottleneck rather than assuming that
-custom kernels must outperform library-backed PyTorch.
-
-\subsection{Task 1, Question 1}
-\label{sec:q1}
-\begin{quote}
-For the audio encoder case, how many bytes does the kernel read and write in total? Which fraction of your GPU's peak bandwidth did you reach?
-\end{quote}
-The harness counts bytes moved as
-$2 \cdot (\text{q\_rows} + \text{k\_rows}) \cdot \text{rotary\_dim} \cdot 4$
-(read $+$ write over the rotated prefix). For the audio-encoder case
-($B{=}1$, $\mathrm{seq}{=}1500$, $H_q{=}H_k{=}20$, $\text{rotary\_dim}{=}32$),
-$\text{q\_rows}{=}\text{k\_rows}{=}30{,}000$, so
-$2 \cdot 60{,}000 \cdot 32 \cdot 4 = 15.36 \times 10^6$~bytes (${\sim}14.6$~MiB)
-per call (an analytical count, not a new timing measurement).
-The fresh harness reports 0.026~ms and 600.0~GB/s, \textbf{78\%} of the
-quoted 768~GB/s peak---a roofline-style~\cite{williams2009roofline} check
-consistent with a memory-bound kernel that also executes trigonometry and indexing.
-
-\subsection{Task 2, Question 3}
-\label{sec:q2}
-\begin{quote}
-How many times does your softmax read each element of \texttt{x} from global memory? How many times does the textbook version (max, then sum, then write) read it?
-\end{quote}
-Our softmax reads each element \textbf{twice}: the first loop in
-\texttt{softmax\_kernel} merges \texttt{MaxSum} statistics; the final output loop
-rereads \texttt{xr[c]} to compute its normalised exponential.
-The textbook implementation reads it \textbf{three times}, once each for maximum,
-exponential sum, and output. Online softmax merges the first two passes, but
-does not remove the output pass. These are source-level global-load requests,
-not measured DRAM transactions; cache hits can reduce actual DRAM traffic.
-
-\subsection{Task 3, Question 2}
-\label{sec:q3}
-\begin{quote}
-Your kernel reaches only a fraction of cuBLAS's speed on the large cases. Name one thing cuBLAS does differently that explains part of the gap. You do not have to implement it.
-\end{quote}
-A plausible explanation is that cuBLAS likely uses more sophisticated
-hierarchical tiling and register-level reuse, computing multiple outputs per
-thread rather than our single-output $16\times16$ shared-memory tile.
-Such strategies increase reuse and arithmetic intensity; however, cuBLAS is
-closed-source and we did not inspect the particular kernel dispatched here.
-Our encoder \texttt{q\_proj} reaches 2967~GFLOP/s versus cuBLAS's 20305;
-\texttt{fc1 + GELU} reaches 2870 versus 21346~GFLOP/s.
-The comparison is not a pure epilogue match (our \texttt{fc1} fuses GELU),
-but the large library gap is consistent with the profile's dominant linear cost.
-We do not claim tensor-core use by the particular cuBLAS calls without tracing them.
-
-\subsection{Task 4, Question 1}
-\label{sec:q4}
-\begin{quote}
-How much memory would the full score matrix of one encoder layer take (20 heads, 1500 x 1500, float32)? How much shared memory does one block of your kernel use instead?
-\end{quote}
-The full score matrix takes $20\cdot1500\cdot1500\cdot4
-=180{,}000{,}000$ bytes ($171.66$~MiB).
-In \texttt{launch\_attention}, shared memory is allocated as
-$4[32(d+1)+32d+4d]$ bytes: padded keys, values and cached scaled queries.
-For encoder head dimension $d=64$, this is
-$4[32\cdot65+32\cdot64+4\cdot64]=17{,}536$ bytes
-($17.125$~KiB) per block, \emph{not} 48~KiB.
-The latter is only the launcher's threshold for requesting an opt-in shared-memory
-limit. Scores are reduced tile by tile with online softmax rather than storing the
-full matrix; these memory footprints are analytical counts from the source.
+Encoder \texttt{q\_proj} reaches 2967~GFLOP/s versus cuBLAS's 20305;
+\texttt{fc1 + GELU} reaches 2870 versus 21346~GFLOP/s. This identifies a concrete
+linear bottleneck rather than assuming custom kernels outperform library-backed
+PyTorch. Selected question answers and analytical counts remain in
+Appendix~\ref{app:asr-answers}.
 
 \section{Discussion and Conclusion}
 \label{sec:conclusion}
@@ -477,7 +433,12 @@ model size or evidence quantity in isolation.
 \bibliographystyle{iclr2027_conference}
 
 % Put your Appendix here if needed. Comment out if you don't need it.
+\clearpage
 \appendix
+\section{Selected ASR question answers}
+\label{app:asr-answers}
+\input{asr_selected_answers.tex}
+
 \section{ASR reproduction commands}
 \label{app:repro}
 
@@ -496,13 +457,13 @@ make clean && make && make test
 All paths below are repository-relative. Initial five-arm raw answers/judgements
 remain local; Qwen practice and newly authorized dev runs include committed
 outputs and audits. Old dev outputs were not overwritten or reused as fresh answers.
-\begin{itemize}
-\item ASR unit tests, throughput and all-CUDA profile:
+\par\noindent\textbf{ASR unit tests, throughput and all-CUDA profile:}
 \path{hw1-asr/results/cuda-submit-logs/make-test-and-profile.log}.
 Task-1-only and PyTorch-only timings:
 \path{hw1-asr/results/cuda-submit-logs/cuda-task1.log} and
 \path{hw1-asr/results/cuda-submit-logs/cuda-none.log}.
-\item ASR analytical counts and quoted questions:
+\par\noindent\textbf{ASR analytical counts and quoted questions:}
+\path{report/latex_template/asr_selected_answers.tex},
 \path{hw1-asr/csrc/task1_rope.cu},
 \path{hw1-asr/csrc/task2_reduce.cu},
 \path{hw1-asr/csrc/task3_gemm.cu},
@@ -512,23 +473,23 @@ Task-1-only and PyTorch-only timings:
 \path{hw1-asr/docs/task2-reduce.md},
 \path{hw1-asr/docs/task3-gemm.md},
 \path{hw1-asr/docs/task4-attention.md}.
-\item RAG tables:
+\par\noindent\textbf{RAG tables:}
 \path{rag/results/selection-run-full/comparison.json} and
 \path{rag/results/dev-validation/comparison.json}, fields
 \texttt{per\_arm} and \texttt{paired}.
 Corpus size and baseline model settings:
 \path{rag/experiments/baseline-3713067.md}.
-\item Candidate-pool, latency, ASR--RAG and lexical diagnostics:
+\par\noindent\textbf{Candidate-pool, latency, ASR--RAG and lexical diagnostics:}
 \path{rag/results/rerank-pool-ablation-full/summary.json},
 \path{rag/results/e2e-latency-practice.json},
 \path{rag/results/asr-rag-four-condition-30/summary.json},
 \path{rag/results/bm25-compare-dev/summary.json}.
 Pilot CPU costs: \path{rag/experiments/selection-pilot-metrics.json}
 and \path{rag/experiments/selection-pilot-results.md}.
-\item Judge consistency, prefix checks, correlations and timing maxima:
+\par\noindent\textbf{Judge consistency, prefix checks, correlations and timing maxima:}
 \path{rag/results/report-evidence/summary.json}, reproduced by
 \path{rag/extensions/audit_report_evidence.py} from local saved outputs.
-\item Dev input and procedure:
+\par\noindent\textbf{Dev input and procedure:}
 \path{rag/experiments/dev125.jsonl},
 \path{rag/experiments/DEV_VALIDATION.md},
 \path{rag/experiments/run_dev_validation_nohup.sh}.
@@ -536,7 +497,7 @@ Selection and summary implementation:
 \path{rag/extensions/run_selection_experiment.py},
 \path{rag/extensions/summarize_selection_experiment.py},
 \path{rag/extensions/README.md}.
-\item Qwen retrieval and fresh paired answer results:
+\par\noindent\textbf{Qwen retrieval and fresh paired answer results:}
 \path{rag/results/qwen06-retrieval-3724137/full/summary.json},
 \path{rag/results/qwen4-retrieval-3724174/full/summary.json},
 \path{rag/results/qwen4-retrieval-3724174/paired-size-comparison.json},
@@ -550,7 +511,7 @@ Protocols and full tables:
 Offline audits:
 \path{rag/extensions/audit_qwen_retrieval.py},
 \path{rag/extensions/audit_qwen_answers.py}.
-\item Frozen Qwen dev verification:
+\par\noindent\textbf{Frozen Qwen dev verification:}
 \path{rag/experiments/QWEN_DEV_VALIDATION.md},
 \path{rag/extensions/run_qwen_dev_validation.py},
 \path{rag/results/qwen4-dev-validation-20261117-v1/protocol.json},
@@ -558,13 +519,17 @@ Offline audits:
 \path{rag/results/qwen4-dev-validation-20261117-v1/retrieval/offline-audit.json},
 \path{rag/results/qwen4-dev-validation-20261117-v1/answer-evaluation/comparison.json},
 \path{rag/results/qwen4-dev-validation-20261117-v1/answer-evaluation/offline-audit.json}.
-\item Quality--cost figure and arithmetic:
+\par\noindent\textbf{Quality--cost figure and arithmetic:}
 \path{report/plot_quality_cost.py},
 \path{report/latex_template/figures/qwen-quality-cost.pdf} and
 \path{rag/results/report-quality-cost/summary.json}.
 The script reads both fresh answer comparisons separately, preserves the full score axes,
 and uses no model or API calls.
-\end{itemize}
+\par\noindent\textbf{System architecture figure, editable vector source and code provenance:}
+\path{report/draw_system_architecture.py},
+\path{report/latex_template/figures/system-architecture.pdf},
+\path{rag/results/report-architecture/summary.json}.
+\par
 To recompute summaries only, without invoking generation or judge:
 \begin{verbatim}
 ~/mls-rag-env/bin/python \
@@ -770,6 +735,8 @@ Following explicit authorization, it then set up and ran the frozen dev
 verification, including new answers and judging, and audited the resulting
 artifacts. The plot and report now distinguish practice/dev and retain the dev
 interval including zero.
+It also drew the architecture diagram from the implementation, distinguishing
+cached inputs, GPU/local/remote components and offline evaluation.
 This describes automated checks, not
 an assertion that the authors independently verified every number. Final author
 review remains outstanding. The group remains
