@@ -47,7 +47,7 @@ class ErrorAnalysisEvidenceTests(unittest.TestCase):
         script = ROOT / "rag/extensions/analyze_practice_errors.py"
         self.assertEqual(hashlib.sha256(script.read_bytes()).hexdigest(), self.summary["script_sha256"])
         self.assertIn("[-0.0007,0.1127]", self.report)
-        self.assertIn("subsequently confirmed three representative case analyses", self.report)
+        self.assertIn("3 author-confirmed, 9 possible and 8 ambiguous", self.report)
         self.assertIn("practice_error_analysis.tex", self.report)
 
     def test_zero_integrity_and_recheck_do_not_replace_scores(self):
@@ -69,6 +69,23 @@ class ErrorAnalysisEvidenceTests(unittest.TestCase):
         self.assertEqual(len(re.split(r"(?<=[.!?])\s+", declaration)), 3)
         for phrase in ("OpenAI", "experiment", "EuroLLM via ELM", "authors", "responsible"):
             self.assertIn(phrase, declaration)
+
+    def test_sample_flag_table_matches_recomputed_counts_and_limits(self):
+        d = self.summary["descriptive_diagnostics"]
+        self.assertEqual(d["confidence_counts"], {"confirmed": 3, "possible": 9, "ambiguous": 8})
+        labels = {
+            "reference_alignment": "Reference/question alignment",
+            "evidence_use": "Evidence use / scope / conditions",
+            "judge_text_conflict": "Judge-text conflict",
+            "topic_entity_mismatch": "Topic/entity mismatch",
+            "source_quality_risk": "Source-quality risk",
+        }
+        for key, label in labels.items():
+            c = d["category_by_confidence"][key]
+            expected = f"{label} & {d['category_counts'][key]} & {c['confirmed']} & {c['possible']} & {c['ambiguous']}"
+            self.assertIn(expected, self.appendix)
+        self.assertFalse(d["complete_20_case_human_review"])
+        self.assertIn("Our descriptive claims do not require a new snippet experiment", self.report)
 
 
 if __name__ == "__main__":

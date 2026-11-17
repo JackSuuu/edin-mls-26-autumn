@@ -21,6 +21,23 @@ The three dimension-zero sets coincide in each arm; this flags calibration, not 
 The frozen judge prompt uses a zero-filled JSON example; anchoring is possible but untested.
 Paired score states: {"positive_positive": 176, "positive_zero": 36, "zero_positive": 53, "zero_zero": 85}.
 
+## Descriptive flags and evidence status (20 sampled judge-zero cases only)
+
+Retrospective descriptive recoding of the existing 20-case notes. Categories overlap; confidence is one case-level status. Only three evidence chains are author-confirmed; this is not an exhaustive mutually exclusive human error taxonomy.
+
+| Overlapping flag | Cases | Confirmed | Possible | Ambiguous |
+|---|---:|---:|---:|---:|
+| evidence_use | 9 | 2 | 5 | 2 |
+| topic_entity_mismatch | 3 | 0 | 1 | 2 |
+| reference_alignment | 12 | 1 | 5 | 6 |
+| judge_text_conflict | 6 | 2 | 2 | 2 |
+| source_quality_risk | 1 | 0 | 0 | 1 |
+
+Case-level status counts: {"ambiguous": 8, "confirmed": 3, "possible": 9}.
+Only three representative evidence chains are author-confirmed; the remaining 17 are not a completed human review.
+Confirmed does not mean a causal mechanism, a fully correct/incorrect answer, or a corrected judge score.
+These descriptive claims require no new snippet intervention; a causal claim would require separate evidence.
+
 ## Sample review
 
 Sample qrel-ID coverage: {"full": 5, "none": 13, "partial": 2}.
@@ -34,6 +51,8 @@ Judge-text conflicts are review flags, not corrected scores.
 **Qrel-ID coverage:** none; Qwen score: 0; paired Dense5 score: 0.0000.
 
 **Tags:** topic_substitution.
+
+**Diagnostic flags:** topic_entity_mismatch; **evidence status:** ambiguous.
 
 问题比较 index 与 accumulation tracker；回答转成 index funds 与 ETFs 的费用、流动性比较，没有解释分红再投资。第一篇选中文档本身就在讨论 ETFs。标注文档缺失，但题目术语也不足以确认原始提问意图；不能单独归因于 reranker。
 
@@ -49,6 +68,8 @@ Judge-text conflicts are review flags, not corrected scores.
 
 **Tags:** reference_scope_mismatch.
 
+**Diagnostic flags:** reference_alignment; **evidence status:** possible.
+
 回答中的 quarterly reports 和 prospectus 直接来自选中文档，而非凭空编造；gold 文档讨论 Vanguard 费用和 NAV。judge 按 gold-only 规则不认可其他检索证据，不能据此认定该答案事实错误。NAV 中反映费用也不等于 statement 显示 expense ratio。
 
 **Snippet assessment:** 弱：优先检查参考覆盖和题意，不宜将分数变化当作片段改善事实质量的证据。
@@ -62,6 +83,8 @@ Judge-text conflicts are review flags, not corrected scores.
 **Qrel-ID coverage:** none; Qwen score: 0; paired Dense5 score: 0.0000.
 
 **Tags:** off_topic_detail, reference_scope_mismatch, snippet_candidate.
+
+**Diagnostic flags:** evidence_use; **evidence status:** possible.
 
 多数回答来自估值相关文档，但把另一篇关于出售股票税基确认的 Written Confirmation 也列为识别便宜股票的因素。这是可定位的离题信息纳入；gold 中对估值的不同观点亦令零分不能直接代表完全无用。
 
@@ -79,6 +102,8 @@ Judge-text conflicts are review flags, not corrected scores.
 
 **Tags:** query_reference_mismatch, judge_text_conflict.
 
+**Diagnostic flags:** reference_alignment, judge_text_conflict; **evidence status:** ambiguous.
+
 问的是 receiving eBay account and SIM cards 的 process；gold 实际建议查信用报告、邮件转寄和误投地址。回答按字面问题表示证据不足。judge 自己承认回答 correctly identifies 证据不足、is grounded，却给三维全零；需要人工复核，而不是强行记为生成失败。
 
 **Snippet assessment:** 弱：主要是字面问题与参考情境不匹配；裁剪不会恢复缺失的情境。
@@ -94,6 +119,8 @@ Judge-text conflicts are review flags, not corrected scores.
 **Qrel-ID coverage:** full; Qwen score: 0; paired Dense5 score: 0.0000.
 
 **Tags:** jurisdiction_scope_blending, snippet_candidate.
+
+**Diagnostic flags:** evidence_use; **evidence status:** confirmed.
 
 全部两个 gold 文档都已进入 prompt。回答把 pension maximum contributions 与 carry-forward/offset against future profits 连在一起；选中内容既有明确 UK allowance，也有公司亏损抵未来利润的讨论，还有明确 US retirement account 语境。回答将其组织成 Ireland 优点，未保留适用主体/法域边界。已能定位范围混合，但尚不能证明删片段会纠正。
 
@@ -113,6 +140,8 @@ Judge-text conflicts are review flags, not corrected scores.
 
 **Tags:** reference_specificity_gap, judge_text_conflict.
 
+**Diagnostic flags:** reference_alignment, judge_text_conflict; **evidence status:** possible.
+
 回答解释一般信用报告负面项目，gold 主要讨论信用历史短、无活跃信用卡和系统总会报最弱项；这是具体情境缺失。judge 还指责回答把责任给 credit bureaus，但答案结尾明确说责任属于 creditors，存在可核对的误读。不能因此替整个答案改分。
 
 **Snippet assessment:** 弱：先找到对应情境的证据；同时人工复核 judge 理由。
@@ -128,6 +157,8 @@ Judge-text conflicts are review flags, not corrected scores.
 **Qrel-ID coverage:** none; Qwen score: 0; paired Dense5 score: 0.0000.
 
 **Tags:** query_ambiguity, topic_substitution.
+
+**Diagnostic flags:** topic_entity_mismatch; **evidence status:** ambiguous.
 
 问题未说车辆或房产；检索和回答主要转向房地产 title insurance，gold 则讨论车辆持有人与驾驶人不同。可观察到领域偏移，但没有原始问题情境，不能称为已确认的 ASR 错误。
 
@@ -145,6 +176,8 @@ Judge-text conflicts are review flags, not corrected scores.
 
 **Tags:** query_reference_mismatch, reference_scope_mismatch.
 
+**Diagnostic flags:** reference_alignment; **evidence status:** ambiguous.
+
 F1 学生成功取得 dealership auto loan 的说法确实在选中文档中，答案也明确没有 BMW-specific policy。gold 则讨论融资被拒、撤销购车和里程费。参考未命中不等于生成没有证据；也不能据此确认 BMW 会贷款。
 
 **Snippet assessment:** 弱：先核实问题是询问一般资格还是已发生的融资撤销。
@@ -161,6 +194,8 @@ F1 学生成功取得 dealership auto loan 的说法确实在选中文档中，�
 
 **Tags:** reference_scope_mismatch, condition_omission.
 
+**Diagnostic flags:** reference_alignment, evidence_use; **evidence status:** possible.
+
 虽未检索到 gold ID，top-5 的另一个文档明确提到 HELOC，回答也包含该建议。因此 Recall=0 不代表 HELOC 证据完全缺失。但 gold 的权益要求、银行差异、最坏情况下能否负担等限制没有完整保留，答案又加入 flip/bridge financing 等不同情境。
 
 **Snippet assessment:** 有风险：剪短可能进一步丢掉权益和还款条件；优先保留条件并识别具体用途。
@@ -176,6 +211,8 @@ F1 学生成功取得 dealership auto loan 的说法确实在选中文档中，�
 **Qrel-ID coverage:** full; Qwen score: 0; paired Dense5 score: 0.0000.
 
 **Tags:** condition_omission, judge_text_conflict.
+
+**Diagnostic flags:** evidence_use, judge_text_conflict; **evidence status:** possible.
 
 gold 已位于第一篇。回答保留 email 约2小时和到账2–3工作日，但用 after that 省略收件人点击并填银行信息这一触发条件。judge 却说答案断言 after clicking the link，原回答没有该短语；属于条件不完整加 judge 误述，不宜称为时间数字完全错误。
 
@@ -195,6 +232,8 @@ gold 已位于第一篇。回答保留 email 约2小时和到账2–3工作日�
 
 **Tags:** reference_specificity_gap, reasoning_mismatch.
 
+**Diagnostic flags:** evidence_use; **evidence status:** possible.
+
 gold 解释快速行情中最低 ask 已被他人买走，回答却说卖方不愿以 ask 成交，并同时建议 market order。关键动态市场机制缺失，所给因果解释不匹配。
 
 **Snippet assessment:** 弱：需要先检索到快速行情/报价过期机制的证据，不能假设现有 top-5 剪短即可补全。
@@ -210,6 +249,8 @@ gold 解释快速行情中最低 ask 已被他人买走，回答却说卖方不�
 **Qrel-ID coverage:** none; Qwen score: 0; paired Dense5 score: 0.0000.
 
 **Tags:** reference_scope_mismatch.
+
+**Diagnostic flags:** reference_alignment; **evidence status:** possible.
 
 选中的 Schedule 13D 文档明确提供 SEC EDGAR 和变更修订，回答实质利用了它；gold 只有 SEC 电子提交及公司网站的简短说明。judge 承认 SEC/13D 与 gold 相符，但仍全零。这里优先考虑参考范围与分数校准问题；不证明所有证券披露细节都准确。
 
@@ -227,6 +268,8 @@ gold 解释快速行情中最低 ask 已被他人买走，回答却说卖方不�
 
 **Tags:** reference_scope_mismatch, risk_caveat_omission.
 
+**Diagnostic flags:** reference_alignment; **evidence status:** ambiguous.
+
 答案主要在讲 iceberg orders、流动性与分拆执行，这些有选中文档依据；gold 重点是低收益高下行风险及机会成本。回答偏执行策略而没有覆盖策略是否值得做。简短问题不足以唯一确定原场景，不能仅因 gold 缺少 iceberg 就叫幻觉。
 
 **Snippet assessment:** 弱：应补策略风险视角，而非只压缩执行建议。
@@ -243,6 +286,8 @@ gold 解释快速行情中最低 ask 已被他人买走，回答却说卖方不�
 
 **Tags:** reference_scope_mismatch, off_topic_detail.
 
+**Diagnostic flags:** reference_alignment, evidence_use; **evidence status:** possible.
+
 Redflagdeals 推荐有直接检索依据；但银行交易导入软件和跨国信用记录材料被整理成 search options，部分不等于比较金融产品的搜索工具。gold 则主要劝不要逐高息账户而非提供搜索方法。这里有任务适配问题，也有参考范围差异。
 
 **Snippet assessment:** 有条件但非首选：可保留直接工具推荐，不过没有完整搜索流程的证据。
@@ -258,6 +303,8 @@ Redflagdeals 推荐有直接检索依据；但银行交易导入软件和跨国�
 **Qrel-ID coverage:** none; Qwen score: 0; paired Dense5 score: 0.0000.
 
 **Tags:** query_reference_mismatch, judge_text_conflict, source_quality_risk.
+
+**Diagnostic flags:** reference_alignment, judge_text_conflict, source_quality_risk; **evidence status:** ambiguous.
 
 问题和答案主体都是 individuals 的扣除，gold 却主要讨论小企业再投资。judge 将整个回答描述成 business tax considerations，遗漏了大量个人扣除内容。另有实质风险：答案把 student loan interest 称为 tax credit，这一混淆能追溯到选中文档本身；这是来源质量/条件问题，不是简单压缩就能保证解决。
 
@@ -277,6 +324,8 @@ Redflagdeals 推荐有直接检索依据；但银行交易导入软件和跨国�
 
 **Tags:** entity_recognition_gap, topic_substitution.
 
+**Diagnostic flags:** topic_entity_mismatch; **evidence status:** possible.
+
 four hundred three B / four hundred one K 在问题中是拼读形式；gold 是退休计划 rollover，top-5 和答案却是 PayPal、SWIFT 等普通汇款。可确认实体识别/检索主题失配，但未做原音频核对或规范化对照，不能声称 ASR 本身识别错了。
 
 **Snippet assessment:** 很弱：需要首先找回退休计划证据；当前候选文档剪短不能产生 rollover 流程。
@@ -292,6 +341,8 @@ four hundred three B / four hundred one K 在问题中是拼读形式；gold 是
 **Qrel-ID coverage:** full; Qwen score: 0; paired Dense5 score: 0.0000.
 
 **Tags:** reference_scope_mismatch, reference_point_omission, snippet_candidate.
+
+**Diagnostic flags:** reference_alignment, evidence_use; **evidence status:** ambiguous.
 
 gold 位于第二篇，明确 dealer 只关心即时无风险收款而不关心资金来源。答案整合了其他文档的 cash vs loan 和 HR 建议，却未说这一核心点。说明参考观点虽可见仍被遗漏，但标题式问题本身也允许一般融资比较，不能把所有非 gold 内容称为错误。
 
@@ -309,6 +360,8 @@ gold 位于第二篇，明确 dealer 只关心即时无风险收款而不关心�
 
 **Tags:** reference_scope_mismatch, judge_text_conflict.
 
+**Diagnostic flags:** reference_alignment, judge_text_conflict; **evidence status:** confirmed.
+
 答案包括 gold 的 MetaStock、Incredible Charts、VectorVest，并引用其他检索文档的 Jstock/Bloomberg。judge 一面说 Bloomberg 的 any kind of data unsupported，一面又说 gold only mentions 同样措辞；实际这句在检索的非 gold 文档。零分与覆盖 gold 要点也存在明显张力，应复核而不直接改分。
 
 **Snippet assessment:** 弱：可能只是删除 gold 外信息更迎合 judge；不能等同事实质量改善。
@@ -324,6 +377,8 @@ gold 位于第二篇，明确 dealer 只关心即时无风险收款而不关心�
 **Qrel-ID coverage:** partial; Qwen score: 0; paired Dense5 score: 0.0000.
 
 **Tags:** condition_omission, judge_text_conflict.
+
+**Diagnostic flags:** evidence_use, judge_text_conflict; **evidence status:** confirmed.
 
 答案保留大量 gold 支持的生存物资，但把 gold/silver 在危机后的用途变为 during the crisis，且弱化实物安全条件。另一方面 judge 声称 gasoline/helicopter、knowledge/connections 不在 gold，实际多篇 gold 原文明确包含它们。因此真实范围错误与评估误读并存。
 
@@ -344,6 +399,8 @@ gold 位于第二篇，明确 dealer 只关心即时无风险收款而不关心�
 **Qrel-ID coverage:** partial; Qwen score: 0; paired Dense5 score: 0.0000.
 
 **Tags:** query_reference_mismatch, reference_point_omission.
+
+**Diagnostic flags:** reference_alignment, evidence_use; **evidence status:** ambiguous.
 
 问题泛问初学者风险图用途，回答按第一篇文档解释 vertical spread 的非线性风险；gold 讨论某个有两个到期日交易的图只显示当前和一个到期日。答案没保留这一特定限制，但不能从泛问题断言它必须复述该案例。judge 自己先承认风险/收益用途，又否认 P/L 随标的变化是主要用途，评分依据应复核。
 

@@ -46,6 +46,42 @@ def score_states(dense, qwen):
     return result
 
 
+def summarize_diagnostics(notes, recheck):
+    """Count descriptive overlapping flags; do not infer causes or population rates."""
+    states = ("confirmed", "possible", "ambiguous")
+    cross = {key: dict.fromkeys(states, 0) for key in notes["category_definitions"]}
+    confidence = dict.fromkeys(states, 0)
+    confirmed = set()
+    ids = set()
+    for case in notes["cases"]:
+        assert case["query_id"] not in ids
+        ids.add(case["query_id"])
+        status = case["confidence"]
+        assert status in states
+        categories = case["diagnostic_categories"]
+        assert categories and len(categories) == len(set(categories))
+        confidence[status] += 1
+        if status == "confirmed":
+            confirmed.add(case["query_id"])
+        for category in categories:
+            assert category in cross
+            cross[category][status] += 1
+    human_confirmed = ({case["query_id"] for case in recheck["cases"]}
+                       if not recheck["author_confirmation_outstanding"] else set())
+    assert confirmed == human_confirmed
+    return {
+        "category_counts": {key: sum(row.values()) for key, row in cross.items()},
+        "category_by_confidence": cross, "confidence_counts": confidence,
+        "category_definitions": notes["category_definitions"],
+        "confidence_definitions": notes["confidence_definitions"],
+        "counting_policy": notes["counting_policy"],
+        "author_confirmed_case_ids": sorted(confirmed),
+        "complete_20_case_human_review": False,
+        "not_claimed": ["Mutually exclusive causal taxonomy", "Population mechanism rates",
+                        "Causal evidence interference", "Twenty human-confirmed errors"],
+    }
+
+
 def verify_quotes(case, note):
     """Every review quotation must be present verbatim in its named saved source."""
     arm = case["arms"]["qwen4_matched5"]
@@ -194,6 +230,7 @@ def main():
         "reviewer": notes["reviewer"],
         "review_quotations_verified_verbatim": True,
         "representative_case_recheck": recheck,
+        "descriptive_diagnostics": summarize_diagnostics(notes, recheck),
         "limitations": [
             "Judge-zero is a sampling label, not human-verified incorrectness.",
             "AI-assisted unblinded qualitative review; not independent human adjudication.",
@@ -234,6 +271,23 @@ def main():
         "The frozen judge prompt uses a zero-filled JSON example; anchoring is possible but untested.",
         "Paired score states: " + json.dumps(summary["paired_score_states"], sort_keys=True) + ".",
         "",
+        "## Descriptive flags and evidence status (20 sampled judge-zero cases only)",
+        "",
+        notes["counting_policy"], "",
+        "| Overlapping flag | Cases | Confirmed | Possible | Ambiguous |",
+        "|---|---:|---:|---:|---:|",
+    ])
+    diagnosis = summary["descriptive_diagnostics"]
+    for category, count in diagnosis["category_counts"].items():
+        row = diagnosis["category_by_confidence"][category]
+        report.append(f"| {category} | {count} | {row['confirmed']} | {row['possible']} | {row['ambiguous']} |")
+    report.extend([
+        "",
+        "Case-level status counts: " + json.dumps(diagnosis["confidence_counts"], sort_keys=True) + ".",
+        "Only three representative evidence chains are author-confirmed; the remaining 17 are not a completed human review.",
+        "Confirmed does not mean a causal mechanism, a fully correct/incorrect answer, or a corrected judge score.",
+        "These descriptive claims require no new snippet intervention; a causal claim would require separate evidence.",
+        "",
         "## Sample review",
         "",
         "Sample qrel-ID coverage: " + json.dumps(summary["sample_qrel_coverage"], sort_keys=True) + ".",
@@ -249,6 +303,8 @@ def main():
             f"**Qrel-ID coverage:** {case['qwen_qrel_coverage']}; "
             f"Qwen score: 0; paired Dense5 score: {case['arms']['dense5']['score']:.4f}.", "",
             f"**Tags:** {', '.join(note['tags'])}.", "",
+            f"**Diagnostic flags:** {', '.join(note['diagnostic_categories'])}; "
+            f"**evidence status:** {note['confidence']}.", "",
             note["finding"], "", f"**Snippet assessment:** {note['snippet_assessment']}", "",
         ])
         for q in note["quotes"]:

@@ -99,10 +99,10 @@
     "rag/results/qwen4-answers-3724290/judge_json_dense5/judge_raw.jsonl": "924ccda2d8318b3d5c96bcf9e02733005108652c7d225e148f9ab7a1b0df687e",
     "rag/results/qwen4-answers-3724290/judge_json_qwen4_matched5/judge_cache.jsonl": "881cdeaeb650e68a6c23d32d8d40c952af2b3adde99b027131fd9560b0d49853",
     "rag/results/qwen4-answers-3724290/judge_json_qwen4_matched5/judge_raw.jsonl": "65cdc2a9d34d0988906d4f857d760509a9175f7972ea1f57f7888e45caeece43",
-    "rag/experiments/practice-error-analysis-v1.json": "d4adfde6242bef6602669ec02b392bdaa86a3b9c9baaccc2617346e047aa9c2d",
+    "rag/experiments/practice-error-analysis-v1.json": "f410dd976644373121ec0852b387ab1e7edafe31ee50bbc7a07a275f64fc3b34",
     "rag/experiments/error-case-recheck.json": "3daa55710f8db92ee128f9bdcce975938deb10646463fc7aa8021aefac120315"
   },
-  "script_sha256": "a67186bcf965c456ebd16630be2cad633d9d705023ac1eb27b7dae4674d0e441",
+  "script_sha256": "2770f6270e2ff2a46e0634d01f6b4748511c34e65b74c2429dd974091cf30439",
   "qualitative_tags_nonexclusive": {
     "condition_omission": 3,
     "entity_recognition_gap": 1,
@@ -214,6 +214,72 @@
           }
         ]
       }
+    ]
+  },
+  "descriptive_diagnostics": {
+    "category_counts": {
+      "evidence_use": 9,
+      "topic_entity_mismatch": 3,
+      "reference_alignment": 12,
+      "judge_text_conflict": 6,
+      "source_quality_risk": 1
+    },
+    "category_by_confidence": {
+      "evidence_use": {
+        "confirmed": 2,
+        "possible": 5,
+        "ambiguous": 2
+      },
+      "topic_entity_mismatch": {
+        "confirmed": 0,
+        "possible": 1,
+        "ambiguous": 2
+      },
+      "reference_alignment": {
+        "confirmed": 1,
+        "possible": 5,
+        "ambiguous": 6
+      },
+      "judge_text_conflict": {
+        "confirmed": 2,
+        "possible": 2,
+        "ambiguous": 2
+      },
+      "source_quality_risk": {
+        "confirmed": 0,
+        "possible": 0,
+        "ambiguous": 1
+      }
+    },
+    "confidence_counts": {
+      "confirmed": 3,
+      "possible": 9,
+      "ambiguous": 8
+    },
+    "category_definitions": {
+      "evidence_use": "Observed or suspected subject/scope substitution, off-topic synthesis, or omission of relevant conditions/points.",
+      "topic_entity_mismatch": "Retrieved/answered topic or entity differs from the intended reference interpretation.",
+      "reference_alignment": "Retrieved support, reference scope or question interpretation differs; not necessarily a model error.",
+      "judge_text_conflict": "Judge reason misstates an answer/source or conflicts with its own wording/scores; not a corrected score.",
+      "source_quality_risk": "Potential error in retrieved source carried into the answer; not externally fact-checked here."
+    },
+    "confidence_definitions": {
+      "confirmed": "One of three representative evidence-chain observations confirmed by the authors, not a confirmed causal mechanism or fully adjudicated answer.",
+      "possible": "Source-supported working diagnosis from AI review, not yet author-confirmed.",
+      "ambiguous": "Important question/reference interpretation or attribution remains unresolved."
+    },
+    "counting_policy": "Retrospective descriptive recoding of the existing 20-case notes. Categories overlap; confidence is one case-level status. Only three evidence chains are author-confirmed; this is not an exhaustive mutually exclusive human error taxonomy.",
+    "author_confirmed_case_ids": [
+      "q_371c6ca10bf1bf5e",
+      "q_e16177bbeb991130",
+      "q_e86dfaec0aa23a50"
+    ],
+    "complete_20_case_human_review": false,
+    "not_claimed": [
+      "Mutually exclusive causal taxonomy",
+      "Population mechanism rates",
+      "Causal evidence interference",
+      "Twenty human-confirmed errors"
     ]
   },
   "limitations": [

@@ -11,6 +11,45 @@ unblinded; the authors subsequently confirmed three representative case analyses
 This does not supply an exhaustive, mutually exclusive mechanism taxonomy
 for all 20 cases or an estimate for all queries/errors.
 
+\textbf{Descriptive labels and evidence status.}
+We retrospectively recode the existing source-linked notes into five
+non-exclusive flags (Table~\ref{tab:diagnostic-flags}); these include evaluation
+and reference issues, not just generator errors. \emph{Confirmed} means one of
+the three representative evidence-chain observations confirmed by the authors,
+not a validated causal mechanism or a fully adjudicated answer.
+\emph{Possible} is an AI-reviewed, source-supported working diagnosis without
+author confirmation; \emph{ambiguous} retains material uncertainty about question,
+reference interpretation or attribution. All 20 have explicit flags and a status,
+but the remaining 17 have not been reported as fully human-reviewed.
+
+\begin{table}[ht]
+\centering
+\caption{Descriptive flags in 20 sampled Qwen practice judge-zero cases.
+Categories overlap; counts are not population mechanism frequencies.}
+\label{tab:diagnostic-flags}
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+Flag & Cases & Conf. & Poss. & Amb. \\
+\midrule
+Reference/question alignment & 12 & 1 & 5 & 6 \\
+Evidence use / scope / conditions & 9 & 2 & 5 & 2 \\
+Judge-text conflict & 6 & 2 & 2 & 2 \\
+Topic/entity mismatch & 3 & 0 & 1 & 2 \\
+Source-quality risk & 1 & 0 & 0 & 1 \\
+\midrule
+Distinct cases (not tag sum) & 20 & 3 & 9 & 8 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Reference alignment is the most frequent \emph{flag} here, not an established
+dominant cause. For example, the crisis-assets case has both a condition-use
+problem and a judge-text conflict, so imposing a single error cause would hide
+coexisting issues. Counts apply only to this zero-score-conditioned practice
+sample, not all queries, all low-quality answers or dev.
+Descriptive analysis does not require a new snippet experiment; no causal
+effect of removing documents is claimed.
+
 \textbf{Population versus sample.} Table~\ref{tab:error-coverage} counts existing
 judge-zero answers in each 350-query practice arm, not human-confirmed errors.
 ``Full'' means all positive-qrel IDs were selected, not sufficient evidence or

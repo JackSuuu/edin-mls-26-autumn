@@ -1,5 +1,7 @@
 """Stdlib-only tests; do not load models, make requests, or import API clients."""
 import importlib.util
+import copy
+import json
 from pathlib import Path
 import unittest
 
@@ -35,6 +37,33 @@ class PracticeErrorAnalysisTests(unittest.TestCase):
     def test_mismatched_pair_ids_fail(self):
         with self.assertRaises(AssertionError):
             analysis.score_states({"a": {}}, {"b": {}})
+
+    def test_descriptive_counts_keep_overlap_and_sample_scope(self):
+        notes = json.loads((analysis.ROOT / analysis.NOTES).read_text())
+        recheck = json.loads((analysis.ROOT / analysis.RECHECK).read_text())
+        result = analysis.summarize_diagnostics(notes, recheck)
+        self.assertEqual(result["category_counts"],
+                         {"evidence_use": 9, "topic_entity_mismatch": 3, "reference_alignment": 12,
+                          "judge_text_conflict": 6, "source_quality_risk": 1})
+        self.assertEqual(result["confidence_counts"], {"confirmed": 3, "possible": 9, "ambiguous": 8})
+        self.assertEqual(sum(result["confidence_counts"].values()), 20)
+        self.assertGreater(sum(result["category_counts"].values()), 20)
+        self.assertFalse(result["complete_20_case_human_review"])
+
+    def test_unconfirmed_case_cannot_be_promoted_to_confirmed(self):
+        notes = json.loads((analysis.ROOT / analysis.NOTES).read_text())
+        recheck = json.loads((analysis.ROOT / analysis.RECHECK).read_text())
+        notes["cases"][0]["confidence"] = "confirmed"
+        with self.assertRaises(AssertionError):
+            analysis.summarize_diagnostics(notes, recheck)
+
+    def test_duplicate_category_cannot_inflate_case_counts(self):
+        notes = json.loads((analysis.ROOT / analysis.NOTES).read_text())
+        recheck = json.loads((analysis.ROOT / analysis.RECHECK).read_text())
+        bad = copy.deepcopy(notes)
+        bad["cases"][0]["diagnostic_categories"] *= 2
+        with self.assertRaises(AssertionError):
+            analysis.summarize_diagnostics(bad, recheck)
 
     def test_quote_is_checked_against_named_source(self):
         case = {"query_id": "q", "gold_documents": [{"record_id": "g", "text": "gold text"}],

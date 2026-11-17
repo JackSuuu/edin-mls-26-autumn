@@ -119,7 +119,7 @@ this is not independent author sign-off.
   visually inspected. Architecture labels are at least about 6.9 pt at print size.
 - No new inference, generation, alternate-judge prompt run or snippet experiment.
 
-### Latest author-confirmation update
+### Previous author-confirmation update
 
 - User reports completed human confirmation of the representative cases.
   The three-case checkbox below is updated on that basis, not by an automated check.
@@ -130,6 +130,23 @@ this is not independent author sign-off.
   causality. No new inference, generation, judging, score edits or snippet test.
 - **26 report tests and 37 RAG tests passed**; rebuilt PDF checker PASS, six-page
   main body and 15 pages total. The three-sentence declaration remains on page 15.
+
+### Latest descriptive-label clarification
+
+- All 20 fixed-sample cases now have explicit overlapping diagnostic categories
+  and one case-level evidence status: 3 confirmed, 9 possible, 8 ambiguous.
+  Confirmed is restricted to the three previously author-confirmed evidence
+  chains; this is not a completed 20-case human error audit.
+- Reference-alignment/evidence-use/judge-conflict/topic-entity/source-quality
+  flags count 12/9/6/3/1. Overlap is intentional; sample-conditioned descriptive
+  counts are not mutually exclusive causes or population error rates.
+- The main body and Appendix H explicitly state that descriptive claims do not
+  require a new snippet experiment. No causal effect or rubric score is claimed.
+- **27 report tests and 40 RAG tests passed**. PDF checker PASS: six-page body,
+  16 pages total; diagnostic status and counts are on pages 12–13, with the concise
+  three-sentence AI declaration on page 16. Pages 5, 12 and 13 visually inspected.
+- Original sample IDs, answers, judge scores, CI endpoints and official style
+  are unchanged; no new generation, judging, model inference or snippet run.
 
 ## Author review — confirmed cases and remaining checks
 
