@@ -47,7 +47,7 @@ class ErrorAnalysisEvidenceTests(unittest.TestCase):
         script = ROOT / "rag/extensions/analyze_practice_errors.py"
         self.assertEqual(hashlib.sha256(script.read_bytes()).hexdigest(), self.summary["script_sha256"])
         self.assertIn("[-0.0007,0.1127]", self.report)
-        self.assertIn("3 author-confirmed, 9 possible and 8 ambiguous", self.report)
+        self.assertIn("Only the three author-confirmed rows have a human-checked evidence chain", self.appendix)
         self.assertIn("practice_error_analysis.tex", self.report)
 
     def test_zero_integrity_and_recheck_do_not_replace_scores(self):
@@ -73,12 +73,11 @@ class ErrorAnalysisEvidenceTests(unittest.TestCase):
     def test_main_body_explains_both_answer_and_judge_defects(self):
         main = self.report.split(r"\bibliography{", 1)[0]
         self.assertIn("company tax-loss", main)
-        self.assertIn("pension contribution limits", main)
-        self.assertIn("crisis-assets case", main)
-        self.assertIn(r"\emph{after} to \emph{during}", main)
-        self.assertIn("judge denies content actually", main)
-        self.assertIn("population", main)
-        self.assertIn("causal effects", main)
+        self.assertIn("pension contributions", main)
+        self.assertIn("Bloomberg claim", main)
+        self.assertIn("the claim comes from other retrieved text", main)
+        self.assertIn("the reviewed examples", main)
+        self.assertIn(r"Appendix~\ref{app:error-analysis}", main)
 
     def test_sample_flag_table_matches_recomputed_counts_and_limits(self):
         d = self.summary["descriptive_diagnostics"]
@@ -95,7 +94,7 @@ class ErrorAnalysisEvidenceTests(unittest.TestCase):
             expected = f"{label} & {d['category_counts'][key]} & {c['confirmed']} & {c['possible']} & {c['ambiguous']}"
             self.assertIn(expected, self.appendix)
         self.assertFalse(d["complete_20_case_human_review"])
-        self.assertIn("Our descriptive claims do not require a new snippet experiment", self.report)
+        self.assertIn("No document-removal or snippet benefit was measured", self.appendix)
 
 
 if __name__ == "__main__":

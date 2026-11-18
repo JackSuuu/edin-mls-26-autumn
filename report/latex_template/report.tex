@@ -42,7 +42,7 @@
 % The official ICLR archive includes math_commands.tex. It is optional:
 \input{math_commands.tex}
 
-\title{Component Choices, Quality and Cost in CUDA ASR and RAG}
+\title{From Retrieval Gains to Answer Quality:\\Evidence Selection and Latency in Audio RAG}
 
 % Keep this line unchanged.
 \author{Anonymous coursework submission}
@@ -85,382 +85,279 @@
 \section{Introduction}
 \label{sec:introduction}
 
-Which component choices improve quality, which increase cost, and where do
-remaining failures arise?
-We investigate this through custom CUDA kernels for GLM-ASR-Nano and a
-retrieval-augmented generation (RAG) pipeline~\cite{lewis2020rag}.
-The ASR comparison asks whether replacing PyTorch operators with our kernels
-speeds up transcription once the whole model is timed.
-The RAG comparison then narrows the answer-quality bottleneck in three steps:
-whether more retrieved evidence raises judged answer quality;
-whether a stronger selector helps when both arms supply five documents;
-and why a judged answer can still be zero after labelled documents are present.
-The comparisons use the same generator, prompt instructions and scoring rubric.
-Each answer is generated and judged once.
+A spoken question enters a retrieval-augmented generation (RAG)
+system~\citep{lewis2020rag} as a transcript from automatic speech recognition
+(ASR). The system must find
+evidence for the answer while keeping the wait for a response short. We study
+the decision between retrieval and generation: which documents should the
+generator receive?
 
-The four CUDA task groups pass the supplied tests. Full CUDA execution is slower
-than PyTorch, with custom linear kernels dominating the profile. On RAG, extra documents raise labelled
-coverage without a detectable answer-score gain, and MiniLM reranking loses
-coverage. A frozen Qwen-4B selector improves retrieval on practice and on the
-previously inspected dev set. Its practice answer-score gain is positive under
-the paired interval; the dev answer-score interval includes zero, and the added
-stage cost is large. An offline diagnostic then separates evidence misuse from
-judge misreadings. It is not another benchmark configuration.
-Dev is not used to retune Qwen, and it is not an untouched independent test.
+A dense retriever can surface useful documents below its first five results.
+Passing more documents to the generator increases its input, while reranking
+the candidates adds a separate inference step. Retrieved text can also be
+redundant or hard for the generator to use. \citet{deng2025influence} assess
+evidence by its contribution to generation. \citet{louis2026oscar} account for
+the cost of processing evidence alongside the cost of generating an answer.
 
-All four selected ASR answers are collected in Appendix~\ref{app:asr-answers}:
-Task 1, Question 1 (Section~\ref{sec:q1}),
-Task 2, Question 3 (Section~\ref{sec:q2}), Task 3, Question 2
-(Section~\ref{sec:q3}), and Task 4, Question 1 (Section~\ref{sec:q4}).
-The Appendix maps measurements to committed evidence files.
+\textbf{Research question.} With ASR transcripts and the generator fixed, can
+reranking the same top-100 candidates to select five documents turn higher
+retrieval recall into better answers at a comparable generator input length?
+What is the additional time for evidence selection and generation?
+
+We implement a token-budgeted context builder and a pipeline that controls
+which source text the rerankers see, then generates and evaluates answers in
+pairs. Sending twenty documents increases labelled coverage, with an uncertain
+answer-score gain. Qwen-4B reranking improves Recall@5 on practice and dev. On
+practice it raises the mean judge score from 0.3374 to 0.3819 at similar input
+length, adding 6.022~s of attributed selection and generation time per query.
+The dev answer-score interval includes zero.
 
 \section{System and Technical Approach}
 \label{sec:approach}
 
+\subsection{Dense5 baseline}
+The supplied pipeline transcribes each audio question with GLM-ASR-Nano and
+encodes the transcript with \texttt{enc\_a}~\citep{reimers2019sbert}. Exact cosine
+search ranks 24,000 document embeddings. Dense5 sends the first five complete
+records in dense order, along with the transcript, to EuroLLM via ELM. The thirty
+questions in our ASR interface check yield identical transcripts and retrieval
+recall under the two tested ASR backends. We reuse a saved transcript for each
+question in every RAG comparison to hold the upstream input fixed. Appendix
+\ref{app:asr-answers} contains the selected ASR coursework answers.
+
 \begin{figure}[t]
 \centering
-\includegraphics[width=\linewidth]{figures/architecture-report.pdf}
-\caption{Takeaway: only evidence selection changes across RAG arms; the generator
-and judge stay fixed. Solid boxes run at inference. Dashed arrows are offline
-evaluation and do not choose documents. Later RAG times are stage sums, not
-audio-to-answer latency.}
+\small
+\setlength{\fboxsep}{4pt}
+\begin{tabular}{@{}c@{\hspace{1.5em}}c@{}}
+\multicolumn{2}{c}{\fbox{\strut Saved ASR transcript and dense top-100 candidates}} \\
+$\downarrow$ & $\downarrow$ \\
+\textbf{Dense5 control} & \textbf{Reranking intervention} \\
+Keep dense order & Match the MiniLM-visible source prefix \\
+& Rescore pairs with Qwen-4B and sort \\
+$\downarrow$ & $\downarrow$ \\
+\fbox{\strut Fetch the first five full records} & \fbox{\strut Fetch the first five full records} \\
+$\downarrow$ & $\downarrow$ \\
+\multicolumn{2}{c}{\fbox{\strut Same prompt and EuroLLM generator for both arms}} \\
+$\downarrow$ & $\downarrow$ \\
+\multicolumn{2}{c}{Paired answer scores and stage costs, recorded per question}
+\end{tabular}
+\caption{The controlled reranking comparison. Both arms start with the same
+transcript and candidate pool. The prefix constraint applies during reranker
+scoring. The generator receives the full text of the five records in each arm.
+The public judge evaluates answers offline using the labelled reference documents.}
 \label{fig:architecture}
 \end{figure}
 
-\subsection{Supplied baseline}
-The homework provides \texttt{csrc/task*.cu} with numbered blanks,
-\texttt{launch\_*} grid configuration, CPU references in \texttt{tests/}, and
-\texttt{glm\_asr\_cuda/ops.py} which selects CUDA or PyTorch per kernel group.
-Figure~\ref{fig:architecture} locates these choices within the ASR--RAG pipeline,
-separating corpus-backed selection from offline retrieval/answer evaluation.
+\subsection{Evidence selection and context construction}
+Figure~\ref{fig:architecture} shows our intervention. We rescore every
+query--document pair in a frozen top-100 pool, keep the five highest-ranked
+records, and break ties using the original dense order. MiniLM uses a
+cross-encoder score~\citep{nogueira2019passage}. Qwen3-Reranker uses the
+difference between the final-position \texttt{yes} and \texttt{no} logits under
+a fixed relevance instruction. In the matched condition, we recover the
+original document prefix visible to MiniLM under its 512-token pair limit and
+pass that source text to Qwen without further truncation. This controls which
+part of each document the ranker can read. The generator receives the full
+text of the selected five records.
 
-\subsection{Task 1: RoPE kernel design}
-RoPE rotates pairs \((v[i], v[i+h])\) before attention, with $h=\mathrm{rotary\_dim}/2$:
-$\angle = \mathrm{pos}\cdot \mathrm{inv\_freq}[i]$,
-$v[i]' = a\cos\angle - b\sin\angle$,
-$v[i+h]' = b\cos\angle + a\sin\angle$.
-One launch covers both \texttt{q} and \texttt{k}: threads $0,\ldots,\text{q\_pairs}-1$
-touch \texttt{q}, then \texttt{k}. Each thread maps a global pair index to
-\texttt{row}, pair index \texttt{i}, and token position
-$\mathrm{pos} = (\mathrm{row}/\mathrm{num\_heads}) \bmod \mathrm{seq\_len}$.
-Elements beyond \texttt{rotary\_dim} are untouched (audio encoder uses
-\texttt{rotary\_dim}$=32$ of \texttt{head\_dim}$=64$).
+We also implement a 4,096-token budget for the initial context comparison.
+The builder takes records in rank order and counts the entire chat input,
+including the question and prompt. When the next record exceeds the remaining
+budget, the builder searches for a feasible character prefix, checks the final
+token count, and stops. The budget applies to the generator's input. The
+matched-source condition above applies to the reranker's input.
 
-Implementation choices: \texttt{ROPE\_THREADS}$=256$ blocks sized by
-\texttt{ceil(total\_pairs / 256)}; in-place updates; \texttt{cosf}/\texttt{sinf}
-computed per pair (no lookup table). Blanks~1.1--1.4 implement indexing and the
-rotation; \texttt{launch\_rope} is unchanged.
-
-\subsection{Task 2: warp/block reductions, RMSNorm, softmax}
-Part~A (\texttt{task2\_reduce.cuh}) implements \texttt{warp\_reduce\_sum/max} with
-\texttt{\_\_shfl\_xor\_sync} and \texttt{block\_reduce\_sum/max} via a
-\texttt{partial[]} staging buffer and two barriers. Part~B builds
-\texttt{rmsnorm\_kernel} (row-wise RMS scale with learned weights) and
-\texttt{softmax\_kernel} using the online \texttt{MaxSum} merge from the guide:
-one statistics pass followed by an output pass. Task~4 reuses the warp helpers
-for tile-wise probability sums.
-
-\subsection{Task 3: shared-memory tiled GEMM}
-Following the lecture tiled GEMM, each $16\times 16$ thread block computes a
-tile of $y = \mathrm{GELU}(x W^\top + b)$ with \texttt{TILE=16}, loading
-\texttt{x} and transposed \texttt{W} into \texttt{\_\_shared\_\_} buffers each
-$K$-step. Padding \texttt{ws} with \texttt{[TILE][TILE+1]} avoids bank conflicts;
-out-of-bounds loads use zero so every thread hits both \texttt{\_\_syncthreads()} calls.
-
-\subsection{Task 4: tiled attention with online softmax}
-Each block covers \texttt{ATTN\_WARPS=4} queries of one head; each warp streams
-keys/values in tiles of 32 through dynamic shared memory (\texttt{k\_tile},
-\texttt{v\_tile}, cached scaled queries). Running statistics $(m,\ell,\mathrm{acc})$
-implement FlashAttention-style online softmax~\cite{dao2022flashattention} with correction
-$\mathrm{corr}=\exp(m-m_{\mathrm{new}})$
-when a tile raises the max. Causal masking sets scores to $-\infty$ past
-\texttt{last\_key}; GQA maps \texttt{kv\_h = h / (num\_heads/num\_kv\_heads)}.
-Blank~4.5 must broadcast each lane's probability with \texttt{\_\_shfl\_sync} so
-every lane accumulates $\sum_r p_r v_r$ across all keys in the tile (not only its own lane).
-
-\section{Experimental Methodology}
+\section{Experimental Design}
 \label{sec:methodology}
 
-\subsection{ASR kernels}
-\textbf{Hardware:} NVIDIA RTX A6000 (sm\_86, 84 SMs; test harness reports
-768~GB/s peak DRAM bandwidth). \textbf{Software:} \texttt{mls-asr}
-conda environment, CUDA via
-\texttt{/usr/local/cuda}, repository \texttt{hw1-asr}.
+\paragraph{Comparisons.}
+We first compare five configurations on 350 practice and 125 dev questions:
+dense top-five, dense top-twenty, MiniLM top-five, dense budget, and MiniLM
+budget. The main MiniLM arms rerank 100 candidates. We vary the pool size
+and compare L6 with L12 to investigate why MiniLM loses top-five coverage.
 
-\textbf{Quality metrics:} per-case \texttt{max\_err} against CPU references
-(\texttt{make test1--4}) and transcription string match on \texttt{test\_audio.wav}
-(\texttt{./run.sh} with all CUDA kernel groups). \textbf{Cost metrics:}
-per-kernel latency/GFLOP/s from tests and end-to-end ms/token with
-\texttt{--profile} shares. \textbf{Controls:} three timed transcriptions of the
-same reference clip per configuration, using the default flags
-\texttt{-O3 -std=c++17 -lineinfo -diag-suppress 177}. All reported ASR
-measurements use the fresh default build on otherwise idle GPU 1; analytical
-memory counts in Appendix~\ref{app:asr-answers} are derived from committed code/test shapes.
+The follow-up study uses its own frozen practice rankings and compares dense
+order, MiniLM-L6, matched Qwen-0.6B and Qwen-4B, and a 4B variant with a
+2,048-token scoring input that includes Qwen's template. Qwen runs in BF16 and
+MiniLM in FP32. The checkpoints also differ in architecture, training and
+tokenization. We generate fresh answers for Dense5 and matched Qwen-4B, shuffle
+the order of the two arms per query, and repeat that fixed comparison on the
+previously inspected dev split without further tuning. Each split has its own
+fresh Dense5 answers and judgements.
 
-\subsection{RAG evidence-selection study}
-\textbf{System:} practice/dev audio questions $\rightarrow$ ASR transcript
-$\rightarrow$ query encoding $\rightarrow$ retrieval over 24{,}000 enc\_a document
-vectors $\rightarrow$ evidence selection/context construction $\rightarrow$ ELM
-answer generation (\texttt{utter-project/EuroLLM-22B-Instruct-2512}, temperature
-0.1). Retrieval uses exact cosine similarity with saved transcripts to isolate
-downstream changes.
+\paragraph{Quality.}
+Both answer arms use the same prompt and
+\texttt{utter-project/EuroLLM-22B-Instruct-2512}~\citep{martins2024eurollm}
+at temperature 0.1. We measure per-query recall against relevance judgements
+(qrels) using the selected document IDs. The public judge uses EuroLLM at
+temperature 0 with the question, candidate answer and qrel-derived reference
+text. For each query, the score $s$ is the sum of correctness, grounding and
+completeness, each on a 0--4 scale, divided by 12. We generate and judge each
+answer once. The average of the per-question score differences is our
+paired effect estimate. The 95\% intervals use 5,000 paired query-bootstrap
+resamples in the initial study and 2,000 for Qwen. They quantify variation
+across questions under the observed runs.
 
-\textbf{Initial paired evaluation:} on 350 practice and 125 held-out dev queries we compare
-five configurations using the same transcripts, corpus, model and prompting:
-\texttt{dense5} (top-5), \texttt{dense20} (top-20), \texttt{rerank5} (cross-encoder
-reranked top-5~\cite{nogueira2019passage}), \texttt{dense\_budget} (dense fill to
-${\sim}$4096 input tokens), and \texttt{rerank\_budget} (reranked fill to
-${\sim}$4096). We report automatic
-judge scores (correctness, grounding, completeness in $[0,4]$, summed and divided
-by 12), selected-ID qrel recall, input tokens and median generation latency.
-Initial score intervals use 5,000 paired query-bootstrap resamples.
-
-\textbf{Exploratory selector extension:} Qwen3-Reranker-0.6B/4B reorder frozen
-top-100 candidates on all 350 practice queries. The primary \emph{matched} arm
-receives the original-character document prefix visible under MiniLM's 512-token
-pair limit, with no additional Qwen truncation; the secondary arm allows 2048
-Qwen tokens including its template. Official instructions and descending
-\texttt{yes} minus \texttt{no} logits are fixed. Qwen uses BF16, MiniLM float32;
-tokenizers, architectures and training also differ, so this is not a size-only
-ablation. The Qwen phase has its own frozen dense ranking cache.
-
-\textbf{Fresh paired answers and frozen dev check:} fresh \texttt{dense5} and
-\texttt{qwen4\_matched5} answers use the same generator, temperature, prompt and
-five full-text records, without truncation; only records/order differ.
-Arm execution order is shuffled per question. One generation and one JSON-mode
-judge call are made per answer; Qwen intervals use 2,000 paired query resamples.
-All intervals are unadjusted and exclude repeated-generation/judge and adaptive
-model-selection uncertainty. After explicit authorization, the selected 4B
-matched configuration is frozen and evaluated on all 125 previously inspected dev
-queries, with new answers and judgements for both arms. No long-context/model
-search, score-based stopping or retuning follows the dev results.
+\paragraph{Time.}
+For the selector comparison, we time warmed runs on an NVIDIA RTX A6000 at
+batch size 8. Reranking time includes tokenization, transfer, inference and
+score materialization. Generation time is API wall time, including remote
+service effects. To compare answer configurations, we add the recorded
+mean reranking time from the earlier GPU run, mean context-building time and
+mean API generation time. This attributed stage cost excludes model loading,
+ASR, initial search and offline evaluation.
 
 \section{Results and Analysis}
 \label{sec:results}
 
-\subsection{RAG: initial evidence quantity and selection}
-\textbf{Does more evidence improve judged answers?}
-The practice retrieval baseline has Recall@5 of 0.421 versus Recall@100 of 0.770
-(350 queries; \texttt{baseline-3713067.md}). This gap indicates that relevant
-documents often occur below the initial evidence cutoff, motivating evidence
-selection from a deeper candidate pool under a limited context budget.
-The initial practice/dev study uses enc\_a embeddings~\cite{reimers2019sbert}
-and ELM EuroLLM~\cite{martins2024eurollm}; its full table is in
-Appendix~\ref{app:initial-paired}.
+\subsection{What does more context buy?}
+In the original practice run, dense retrieval covers 0.421 of labelled
+documents at rank 5 and 0.770 at rank 100. Relevant candidates therefore exist
+below Dense5's cutoff. Table~\ref{tab:context-quantity} shows what happens when
+we give the generator more of them.
 
 \begin{table}[t]
-\centering
-\small
-\setlength{\tabcolsep}{4pt}
-\caption{Takeaway: Qwen raises Recall@5 on both splits; the practice judge score
-rises, and the dev score interval includes zero, while attributed cost roughly
-doubles. Practice \(n{=}350\), inspected dev \(n{=}125\). R5 is Recall@5. Score
-is the mean judge score in \([0,1]\). Attr.\ s is mean rerank plus generation
-time, not audio-to-answer latency.}
-\label{tab:qwen-answers}
-\begin{tabular}{@{}llrrrrr@{}}
+\centering\small
+\caption{Context quantity in the initial experiment. Recall uses the document
+IDs selected by each arm. Input length and score are means. Generation is
+median API time in seconds per query.}
+\label{tab:context-quantity}
+\begin{tabular}{@{}llrrrr@{}}
 \toprule
-Split & Selector & R5 & Score & Tokens & Gen. ms & Attr. s \\
+Split & Context & Recall & Input tokens & Score & Gen. (s) \\
 \midrule
-Practice & Dense5 & .4213 & .3374 & 1290 & 4336 & 4.757 \\
-& Qwen 4B & .5262 & .3819 & 1267 & 5035 & 10.779 \\
+Practice (350) & Dense5 & .421 & 1290 & .3267 & 3.655 \\
+& Dense20 & .579 & 4984 & .3262 & 4.830 \\
+& Dense budget & .548 & 4096 & .3245 & 4.875 \\
 \midrule
-Dev & Dense5 & .3795 & .3133 & 1209 & 4622 & 4.573 \\
-& Qwen 4B & .4568 & .3700 & 1245 & 4988 & 10.263 \\
+Dev (125) & Dense5 & .379 & 1209 & .3307 & 4.532 \\
+& Dense20 & .580 & 4948 & .3307 & 5.871 \\
+& Dense budget & .566 & 4096 & .3280 & 5.672 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\textbf{Quantity is not sufficient.} Every reported paired answer-score interval
-in the \emph{initial five-arm study} includes zero (Appendix~\ref{app:initial-paired}).
-On dev, increasing from five to twenty documents raises recall from 0.379 to
-0.580 but not mean answer score: $\Delta=0.0000$, 95\% interval
-$[-0.0440,0.0427]$. The budget-reranking difference of $-0.0447$
-$[-0.1007,0.0133]$ on dev is $-0.0069$ $[-0.0390,0.0255]$ on practice.
-Within dev arms, recall still correlates with score ($r=0.294$--$0.465$).
-Budget arms use less input than \texttt{dense20} (4096 versus 4948 tokens).
-These observations do not separate redundant evidence, generation failure
-and judge noise (Appendix~\ref{app:initial-paired}).
+On dev, Dense20 raises selected-document recall by about 0.20 and gives the
+generator about four times as many input tokens. The paired mean score
+difference is $0.0000$ with a 95\% interval of $[-0.0440,0.0427]$. The budget
+arm keeps much of the coverage increase with fewer input tokens than Dense20.
+The initial paired intervals all include zero
+(Appendix~\ref{app:initial-paired}). These comparisons leave the contributions of
+redundant evidence, generation variability and judge variability unresolved.
+We use five documents as the common output size for the reranker comparison.
 
-\textbf{Candidate-pool ablation.} On 350 practice questions, GPU cross-encoder
-pools of 20/50/100 yield Recall@5 of 0.411/0.399/0.388, below dense's 0.421;
-mean costs are 39/97/194~ms. L6 removes 83 qrel-positive document pairs from
-dense's first five while adding 47. Increasing the candidate count therefore
-does not fix this selector; timing and lexical controls are in
-Appendix~\ref{app:initial-paired}.
+\subsection{Can reranking improve the first five results?}
+MiniLM-L6 achieves Recall@5 of 0.411, 0.399 and 0.388 as candidate depth
+increases from 20 to 50 to 100 on practice, versus Dense5's 0.421. Mean
+reranking cost rises from 39 to 97 to 194~ms across those depths. At depth 100,
+L6 removes 83 labelled query--document pairs from Dense5's selections and
+adds 47. The matched L12 control recovers some coverage relative to L6
+($+0.0225$ Recall@5, 95\% interval $[0.0022,0.0427]$), leaving an uncertain
+difference against Dense5 (Appendix~\ref{app:model-control}). The larger pools
+leave L6 below Dense5, pointing to ranking within the available pool.
 
-\textbf{L12 control.} A matched practice-only L6/L12 rerun exactly reproduces
-the old L6 scores. L12 improves Recall@5 by 0.0225 $[0.0022,0.0427]$ over L6,
-but not demonstrably over dense: $-0.0111$ $[-0.0427,0.0201]$.
-Median reranking grows from 169 to 296~ms without a detectable MRR/NDCG gain.
-Its 67 removed/42 added relevant pairs indicate fewer losses than L6, not
-more recoveries; pair counts are not a macro-recall decomposition
-(Appendix~\ref{app:model-control}).
-
-\subsection{RAG: a stronger selector and downstream validation}
-\textbf{Does better selection improve judged answers at a fixed document count?}
 \begin{table}[t]
-\centering
-\small
-\caption{Exploratory practice retrieval (350 queries). Qwen matched arms see
-MiniLM-visible source prefixes. Costs are median reranking ms from the
-batch-8 A6000 runs, not earlier batch-32 L6/L12 timings.}
+\centering\small
+\caption{Reranking the same frozen top-100 pool on 350 practice queries.
+Matched Qwen variants see the source prefix visible to MiniLM. Time is median
+reranking latency on A6000 at batch size 8.}
 \label{tab:qwen-retrieval}
 \begin{tabular}{@{}lrrrr@{}}
 \toprule
-Selector & Recall@5 & MRR@10 & NDCG@10 & Rerank ms \\
+Selector & Recall@5 & MRR@10 & NDCG@10 & Rerank (s) \\
 \midrule
 Dense & .4213 & .4887 & .4205 & --- \\
-MiniLM L6 & .3877 & .4535 & .3952 & 333 \\
-Qwen 0.6B matched & .4671 & .4985 & .4544 & 1630 \\
-Qwen 4B matched & .5262 & .5956 & .5341 & 5823 \\
-Qwen 4B native-2048 & .5306 & .5995 & .5398 & 7328 \\
+MiniLM L6 & .3877 & .4535 & .3952 & .333 \\
+Qwen-0.6B matched & .4671 & .4985 & .4544 & 1.630 \\
+Qwen-4B matched & .5262 & .5956 & .5341 & 5.823 \\
+Qwen-4B native-2048 & .5306 & .5995 & .5398 & 7.328 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\textbf{Same visible text, better selection.} Qwen 4B matched improves
-Recall@5 over its dense control by 0.1049 $[0.0726,0.1378]$ and over
-0.6B by 0.0591 $[0.0346,0.0841]$ (Table~\ref{tab:qwen-retrieval}).
-Allowing longer source text adds only 0.0043 $[-0.0036,0.0137]$ Recall@5
-over 4B matched. Thus its main gain cannot simply be attributed to reading more
-document text; checkpoint choice matters. This does not isolate parameter count
-from architecture, training, tokenizer, instruction or precision.
+Matched Qwen-4B raises Recall@5 by 0.1049 over dense
+($[0.0726,0.1378]$). Extending 4B's scoring input beyond the matched prefix
+adds 0.0043 ($[-0.0036,0.0137]$) while adding 1.505~s to median reranking
+time (Table~\ref{tab:qwen-retrieval}). The larger recall gain is already
+present with source visibility controlled. The checkpoint comparison leaves
+the effect of parameter count unresolved.
 
-\textbf{Answer-score benefit at similar input length.} With unchanged generator,
-prompt and record count, 4B-selected evidence raises the mean score from
-0.3374 to 0.3819: paired $\Delta=0.0445$, 95\% interval $[0.0112,0.0788]$;
-115 queries improve, 80 decline and 155 tie. Input length is similar
-(1290 versus 1267 tokens; Table~\ref{tab:qwen-answers}).
-This is positive downstream evidence for selection, not for simply adding
-context. The comparator is this run's \emph{fresh} dense5, not the earlier 0.327.
-Better retrieval is reproducible across the evaluated splits, but improved
-downstream answer quality is less certain, particularly once generation
-variability and evaluation limitations are taken into account.
-The score is not percent-correct, and the same-model generator/judge, incomplete
-qrels and one-shot stochastic outputs limit interpretation.
+\subsection{Do retrieval gains reach the answer?}
+On practice, matched Qwen-4B increases the mean judge score by 0.0445
+($[0.0112,0.0788]$), with 115 questions scoring higher, 80 lower, and 155
+tied. Both arms supply five full documents and their mean input lengths
+differ by 23 tokens (Table~\ref{tab:qwen-answers}). The answer comparison
+therefore captures the effect of changing which records the generator sees
+and their order, under the observed generation and judging protocol.
 
-\textbf{Frozen dev check: retrieval replicates, answer benefit remains uncertain.}
-On 125 previously inspected dev queries, 4B raises Recall@5 from 0.3795 to
-0.4568: $\Delta=0.0773$, 95\% interval $[0.0200,0.1339]$.
-MRR/NDCG gains also exclude zero (Appendix~\ref{app:qwen-dev}).
-Fresh answer scores are 0.3133 versus 0.3700:
-$\Delta=0.0567$, interval $[-0.0007,0.1127]$; 40 improve, 30 decline, 55 tie.
-This interval \emph{includes zero}; its positive mean is directionally consistent
-with practice, not confirmation of a dev answer-quality gain. No rerun is used
-to seek significance, and the fresh baseline is not the old dev score.
-
-\textbf{Cost and failures.} On practice, the 4B reranker costs a median 5.823~s/query.
-Mean attributed cost rises from 4.757 to 10.779~s
-(Figure~\ref{fig:quality-cost}).
-For each arm it is the mean reranking time from the preceding GPU run plus the
-mean generation time of this answer run. ASR, query encoding, retrieval and
-model loading are excluded, so the sum is not a measured audio-to-answer latency.
-The mean judge-score gain is
-13.2\% relative, while attributed cost increases 126.6\%, or 6.022~s
-(Figure~\ref{fig:quality-cost}). These percentages are not a common utility scale.
-On dev, attributed cost grows from 4.573 to 10.263~s while the answer-score
-gain remains uncertain.
-
-\textbf{Where the zero scores come from.} Practice judge-zero fractions are
-39.4\% for dense and 34.6\% for Qwen: 53 queries leave zero and 36 enter it
-(Figure~\ref{fig:zero-scores}). All 700 answers are nonempty, finish with
-\texttt{stop}, and have scores matching the raw judge responses.
-This locates the zeros in the judge's decisions rather than empty outputs or
-parser fallbacks. The three dimension-zero sets also coincide in each arm,
-raising a calibration question examined in Appendix~\ref{app:error-analysis}.
-
-\textbf{How evidence use and judging fail.} Thirty Qwen zeros include all gold IDs.
-In 20 sampled zeros, reference alignment is flagged most often (12), followed
-by evidence use (9) and judge-text conflict (6). The pension answer turns a
-\emph{company tax-loss} rule into a claim about pension contribution limits.
-In the crisis-assets case, the answer shifts gold/silver's usefulness from
-\emph{after} to \emph{during} the crisis, while the judge denies content actually
-present in gold. Answer defects and judge misreadings can therefore coexist.
-In a separate AI text review of six full-coverage zeros, the car-return answer
-agreed with gold that the vehicle could not be returned after a month. The judge
-said gold never mentioned returning it. A zero can therefore mask a supported
-answer, just as a retrieved document can go unused. Appendix~\ref{app:error-analysis}
-distinguishes the two samples and their review status.
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=.95\linewidth]{figures/qwen-quality-cost.pdf}
-\caption{Takeaway: the practice score gain is paired with about six extra
-attributed seconds; the dev score interval includes zero. Splits are not pooled.
-The horizontal axis is rerank plus generation time, not audio-to-answer latency.
-Annotations are paired score intervals, not timing error bars.}
-\label{fig:quality-cost}
-\end{figure}
-
-\begin{figure}[t]
-\centering
-\includegraphics[width=\linewidth]{figures/practice-zero-scores.pdf}
-\caption{Takeaway: judge-zero is common and is not a verified error rate.
-Each bar is all 350 practice queries; qrel coverage splits only the zeros.
-Right: 53 queries leave zero and 36 enter it. These states are not correctness
-labels.}
-\label{fig:zero-scores}
-\end{figure}
-
-\textbf{ASR--RAG connection.} On 30 questions, custom/reference ASR transcripts
-have zero differences and identical downstream recall. A separate 10-question
-probe, with generation disabled, measures mean ASR/embedding/retrieval times of
-2622/11/13~ms. These small probes support cached-transcript comparisons here,
-not general ASR equivalence or an end-to-end latency claim.
-
-\subsection{ASR correctness and end-to-end findings}
-All four task suites report \textbf{ALL PASS}. All-CUDA, Task-1-only and
-PyTorch-only runs reproduce \emph{Concord returned to its place amidst the tents.}
-with the harness reporting 100.0\% word accuracy on this reference clip.
-Table~\ref{tab:asr-latency} compares the same clip on an otherwise idle A6000.
+On the previously inspected dev split, the frozen selector increases
+Recall@5 by 0.0773 ($[0.0200,0.1339]$). The mean answer-score difference
+is 0.0567 ($[-0.0007,0.1127]$), with 40 better, 30 worse and 55 tied. The
+retrieval gain recurs, while the interval for the mean answer gain includes
+zero. Appendix~\ref{app:qwen-dev} reports the other ranking metrics.
 
 \begin{table}[t]
-\centering
-\small
-\caption{Mean transcription time on the reference clip. All-CUDA takes
-\(3.8\times\) the PyTorch time. Task-1-only also enables the provided CUDA
-operators, so its timing does not isolate RoPE.}
-\label{tab:asr-latency}
-\begin{tabular}{@{}lrr@{}}
+\centering\small
+\setlength{\tabcolsep}{4pt}
+\caption{Fresh paired answer runs. R5 is Recall@5. Score and input tokens are
+means. Rerank and Gen.\ are mean stage seconds per query. Total adds reranking,
+context building, and generation using stage records from separate runs.}
+\label{tab:qwen-answers}
+\begin{tabular}{@{}llrrrrrr@{}}
 \toprule
-Mode & Time (ms) & Versus PyTorch \\
+Split & Selector & R5 & Score & Tokens & Rerank & Gen. & Total \\
 \midrule
-PyTorch-only & 521.3 & $1.0\times$ \\
-Task-1-only CUDA & 483.1 & $0.93\times$ ($-7.3\%$) \\
-All-CUDA & 1986.1 & $3.8\times$ \\
+Practice & Dense5 & .4213 & .3374 & 1290 & .000 & 4.755 & 4.757 \\
+& Qwen-4B & .5262 & .3819 & 1267 & 5.743 & 5.034 & 10.779 \\
+\midrule
+Dev & Dense5 & .3795 & .3133 & 1209 & .000 & 4.571 & 4.573 \\
+& Qwen-4B & .4568 & .3700 & 1245 & 5.621 & 4.641 & 10.263 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-Task-1-only retains the library GEMMs. The all-CUDA profile
-attributes 83.8\% of kernel time to \texttt{linear} and 15.4\% to
-\texttt{attention}. Encoder \texttt{q\_proj} reaches 2967~GFLOP/s versus
-cuBLAS's 20305, and \texttt{fc1 + GELU} reaches 2870 versus 21346~GFLOP/s.
-A fast local kernel therefore does not imply a faster model when the dominant
-operator is a slower replacement for a tuned library routine.
-Selected question answers and analytical counts remain in
-Appendix~\ref{app:asr-answers}.
+\subsection{Where does the extra time go?}
+The attributed cost increases by 6.022~s per practice question and 5.690~s per
+dev question. The added reranker accounts for 5.743 and 5.621~s, respectively.
+Mean API generation time differs by about 0.28~s on practice and 0.07~s on
+dev. That smaller difference also reflects the generated outputs and changing
+API load. The main measured cost increase comes before generation.
+
+\subsection{Why can an answer fail with the evidence present?}
+On practice, 53 questions move from a zero judge score to a positive score,
+while 36 move in the opposite direction. Thirty of the 121 Qwen zeros include
+every labelled document ID. Two source checks show why document coverage and
+answer scores can diverge. One answer applies a company tax-loss rule to
+pension contributions even though both labelled pension documents are present.
+In another case, the judge attributes a Bloomberg claim to the reference
+documents, while the claim comes from other retrieved text. The first case
+illustrates misuse of available evidence. The second identifies a discrepancy
+in the judge's explanation. The source checks establish these observations in
+the reviewed examples. Appendix~\ref{app:error-analysis} describes case selection,
+review status and the original scores.
 
 \section{Discussion and Conclusion}
 \label{sec:conclusion}
 
-\textbf{What the controls explain.} Profiling locates the ASR bottleneck in linear
-kernels: all-CUDA takes 1986~ms per transcription versus 521~ms for PyTorch.
-More RAG context raises coverage without a detectable answer-score gain.
-Qwen improves retrieval on both splits; the practice answer-score gain is paired
-with a large attributed delay, and the dev answer interval includes zero.
+Reranking from a shared pool improves early retrieval on both splits. With
+five documents and similar mean input length, Qwen-4B raises the practice
+answer score by 0.0445 under our judging protocol. The dev score interval leaves
+the downstream benefit uncertain. The extra 5.7--6.0~s of attributed per-query
+cost comes mainly from the reranker. This matters for interactive voice
+queries, where the user also waits for transcription, and for offline answering,
+where the acceptable delay may differ.
 
-\textbf{What the cases explain.} Source tracing separates misapplied evidence from
-judge misreadings. Judge-zero answers are not verified incorrect answers: all
-three dimensions are simultaneously zero, and some explanations conflict with gold.
-The case reviews identify specific mistakes but cannot tell us how often a
-zero reflects an incorrect answer. We retain the original scores.
-
-\textbf{Limits.} Dev was previously inspected, so it is not an untouched test.
-Query bootstrap excludes repeated generation, repeated judging and adaptive
-model selection. Qrels can be incomplete, and same-model judging limits quality
-claims. We stop configuration search here.
+Dataset and measurement limits constrain this trade-off. We selected the
+checkpoint on practice and evaluated it on a previously inspected dev set.
+The paired intervals omit variability from rerunning generation or judging and
+from adaptive checkpoint selection. Qrels can miss supporting documents, and the
+judge sees reference text that can differ from the generator's evidence. We have
+retrieval measurements for Qwen-0.6B, leaving its effect on answers open. A
+separate ten-question probe timed the pipeline through context construction with
+generation disabled. The answer comparisons measured selection and generation
+from cached inputs, so the cost in Table~\ref{tab:qwen-answers} covers those
+stages of the audio-to-answer request.
 
 % References are excluded from the main-body page limit.
 \bibliography{references}
@@ -720,9 +617,9 @@ All are descriptive unadjusted query intervals.
 Fresh answer dimension differences on the $[0,4]$ scale are correctness
 $0.1600$ $[0.0286,0.2971]$, grounding $0.2000$ $[0.0514,0.3514]$ and
 completeness $0.1743$ $[0.0429,0.3086]$. Mean generation times are
-4.755/5.034~s for dense/Qwen evidence; Table~\ref{tab:qwen-answers} instead
-uses generation \emph{medians} and mean \emph{attributed} selection-plus-generation
-costs. ASR and initial retrieval were cached, not timed in that answer experiment.
+4.755/5.034~s for dense/Qwen evidence. Table~\ref{tab:qwen-answers} reports
+these means alongside the mean reranking and attributed total times. ASR and
+initial retrieval were cached for answer generation.
 
 \section{Frozen Qwen dev verification}
 \label{app:qwen-dev}

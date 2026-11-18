@@ -37,11 +37,14 @@ class ArchitectureSvgTests(unittest.TestCase):
             self.assertIn("GLM-ASR", page.get_text())
             self.assertNotIn("System / Data-Flow Overview", page.get_text())
 
-    def test_report_uses_replacement_not_superseded_diagram(self):
-        tex = (ROOT / "report/latex_template/report.tex").read_text()
-        self.assertIn(r"\includegraphics[width=\linewidth]{figures/architecture-report.pdf}", tex)
-        self.assertIn("ASR_RAG_System_Architecture_No_Title.svg", tex)
-        self.assertNotIn(r"\includegraphics[width=\linewidth]{figures/system-architecture.pdf}", tex)
+    def test_report_diagram_shows_the_controlled_reranking_comparison(self):
+        tex = (ROOT / "report/latex_template/report.tex").read_text(encoding="utf-8")
+        diagram = tex.split(r"\label{fig:architecture}", 1)[0].rsplit(r"\begin{figure}", 1)[1]
+        self.assertIn("dense top-100 candidates", diagram)
+        self.assertIn("Dense5 control", diagram)
+        self.assertIn("Rescore pairs with Qwen-4B", diagram)
+        self.assertEqual(diagram.count("Fetch the first five full records"), 2)
+        self.assertIn("Same prompt and EuroLLM generator for both arms", diagram)
 
 
 if __name__ == "__main__":
