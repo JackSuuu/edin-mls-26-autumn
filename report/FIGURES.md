@@ -2,43 +2,18 @@
 
 ## System architecture
 
-![Report-scale CUDA ASR and RAG data flow](latex_template/figures/architecture-report.png)
-
-- **Main-body version:** `report/latex_template/figures/architecture-report.pdf`.
-  `python3 report/draw_readable_architecture.py` makes a two-row reflow using the
-  supplied components/palette, abbreviates redundant labels and moves timing
-  explanation into the caption. Its smallest labels are about 6.9 pt at the
-  396-pt report width, versus roughly 3.1 pt in the original wide SVG.
-  Explicit corpus-to-context/selection and ranking-to-evaluation links reflect
-  the implementation. Adaptation and hashes:
-  `rag/results/report-architecture/readable-summary.json`.
-- **Unmodified original design**, retained as a vector PDF:
-  `report/latex_template/figures/ASR_RAG_System_Architecture_No_Title.pdf`.
-- Editable source: the group-supplied
-  `report/latex_template/figures/ASR_RAG_System_Architecture_No_Title.svg`,
-  pulled in commit `07fdab9`. The supplied SVG and its full conversion are
-  retained unchanged; Figure 1 uses the explicitly labelled readable reflow.
-- Conversion: install `CairoSVG==2.9.1` and PyMuPDF in a Python environment, then
-  run `python report/convert_architecture_svg.py` from the repository root.
-  The PDF contains vector shapes and text, not a raster screenshot.
-  CairoSVG preserves SVG marker arrowheads; direct MuPDF SVG import loses them.
-  CairoSVG also requires the platform Cairo library.
-- Source/conversion/asset hashes and converter versions:
-  `rag/results/report-architecture/svg-summary.json`.
-- Solid arrows show data flow; dashed arrows denote cached/reused artifacts.
-  In the reflow, dashed red arrows instead explicitly mark offline-evaluation
-  inputs; cache reuse is labelled in the nodes.
-- Qrels do **not** feed online evidence selection; no judge-to-selector tuning
-  loop is shown.
-- Transcript/candidate caches mark the controlled RAG experimental boundary.
-  Timing notes distinguish standalone ASR benchmarks from attributed RAG stage
-  costs. The diagram does not claim measured audio-to-answer latency.
-- Top-k generation uses full selected records; token-budget arms may use
-  document prefixes. The context-builder label deliberately covers both.
-- The previous `draw_system_architecture.py` and `figures/system-architecture.*`
-  are retained as superseded assets; they are no longer included by LaTeX.
-  Their original provenance remains in `report-architecture/summary.json`.
-  The earlier titled SVG in `latex_template/` is likewise superseded.
+- **Main-body version:** [audio-rag-architecture.pdf](latex_template/figures/audio-rag-architecture.pdf).
+  Edit the source in draw.io using `report/latex_template/figures/audio-rag-architecture.drawio`.
+- The two evidence lists show original dense ranks for practice query
+  `q_ce474d8f8d548797`, from
+  `rag/results/qwen4-retrieval-3724174/full/rankings.jsonl`.
+- Solid arrows show the request path. Dashed arrows mark storage reads.
+  Both arms share the saved transcript and dense candidate pool, then read
+  the full text of the five selected records for generation.
+- Earlier versions include `architecture-report.pdf` (the two-row reflow),
+  `ASR_RAG_System_Architecture_No_Title.pdf` (the group-supplied design) and
+  `system-architecture.pdf`. Their generation and conversion records are
+  under `rag/results/report-architecture/`.
 
 ## Quality versus attributed stage cost
 

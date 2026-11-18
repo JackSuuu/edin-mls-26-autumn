@@ -91,7 +91,8 @@ generation (RAG) pipeline~\citep{lewis2020rag}. A language model uses the
 retrieved documents to answer the question. Finding and processing those
 documents contributes to the time the user waits for an answer. We benchmark
 CUDA replacements for the ASR operators, then fix the transcript to measure
-what evidence selection changes downstream.
+what evidence selection changes downstream. Appendix~\ref{app:asr-answers}
+answers one question from each of the four ASR tasks.
 
 The choice of retriever determines which documents the system finds. Dense
 retrieval uses similarity between embeddings, while BM25 scores matches
@@ -121,22 +122,10 @@ generation?
 
 \subsection{CUDA operators and transcription latency}
 \label{sec:asr-kernels}
-We implement four CUDA operator groups for the supplied GLM-ASR-Nano model.
-All four supplied test suites pass on an NVIDIA RTX A6000. For Task~1, the
-encoder rotary position embedding (RoPE) reads and writes the rotated query
-and key prefixes, moving 15.36~MB per call. The harness measures 600~GB/s,
-78\% of peak. For Task~2, we implement reductions and normalisation. Our
-online softmax combines the maximum and sum passes, issuing two global input
-loads per element including the output pass, compared with three for the
-textbook version.
-
-For Task~3, our $16\times16$ shared-memory GEMM tile computes one result per
-thread. Register tiling that reuses operands across several results per thread
-could help explain cuBLAS's lead on encoder \texttt{q\_proj} (20.31 versus
-2.97~TFLOP/s). For Task~4, tiled attention with online softmax avoids storing
-the full encoder score matrix, which would take 180~MB in float32. One block
-uses 17,536~bytes of shared memory. Appendix~\ref{app:asr-answers} gives the
-questions and derivations.
+We implement rotary position embeddings (RoPE), reductions and normalisation,
+tiled GEMM, and tiled attention for the supplied GLM-ASR-Nano model. Online
+softmax lets the attention kernel process scores in tiles without storing the
+full matrix. All four supplied CUDA test suites pass on an NVIDIA RTX A6000.
 
 On the same 3.50~s clip, three runs per configuration give mean transcription
 times of 521.3~ms with GPU PyTorch, 483.1~ms with the Task~1 preset and
@@ -144,8 +133,10 @@ times of 521.3~ms with GPU PyTorch, 483.1~ms with the Task~1 preset and
 audio features prepared. All three reproduce the reference words. The Task~1
 preset also enables supplied CUDA kernels, so the timing covers the whole
 preset. In the separate all-CUDA profiling pass, linear operations account for
-83.8\% of kernel time and attention for 15.4\%. Together with the GEMM
-throughput gap, this points to linear layers as the main optimisation target.
+83.8\% of kernel time and attention for 15.4\%. Our encoder \texttt{q\_proj}
+reaches 2.97~TFLOP/s against 20.31~TFLOP/s for cuBLAS on the same shape.
+The profile and throughput gap point to linear layers as the main
+optimisation target.
 
 \subsection{Dense5 baseline}
 The supplied pipeline transcribes each audio question with GLM-ASR-Nano and
@@ -158,25 +149,11 @@ question in the RAG comparisons to hold the upstream input fixed.
 
 \begin{figure}[t]
 \centering
-\small
-\setlength{\fboxsep}{4pt}
-\begin{tabular}{@{}c@{\hspace{1.5em}}c@{}}
-\multicolumn{2}{c}{\fbox{\strut Saved ASR transcript and dense top-100 candidates}} \\
-$\downarrow$ & $\downarrow$ \\
-\textbf{Dense5 control} & \textbf{Reranking intervention} \\
-Keep dense order & Match the MiniLM-visible source prefix \\
-& Rescore pairs with Qwen-4B and sort \\
-$\downarrow$ & $\downarrow$ \\
-\fbox{\strut Fetch the first five full records} & \fbox{\strut Fetch the first five full records} \\
-$\downarrow$ & $\downarrow$ \\
-\multicolumn{2}{c}{\fbox{\strut Same prompt and EuroLLM generator for both arms}} \\
-$\downarrow$ & $\downarrow$ \\
-\multicolumn{2}{c}{Paired answer scores and stage costs, recorded per question}
-\end{tabular}
-\caption{The controlled reranking comparison. Both arms start with the same
-transcript and candidate pool. The prefix constraint applies during reranker
-scoring. The generator receives the full text of the five records in each arm.
-The public judge evaluates answers offline using the labelled reference documents.}
+\includegraphics[width=\linewidth]{figures/audio-rag-architecture.pdf}
+\caption{Audio RAG pipeline and controlled reranking comparison. Both arms share
+a saved transcript and the dense top 100. Qwen scores matched document prefixes.
+EuroLLM receives five full records per arm. The cards show original dense
+ranks for one practice query.}
 \label{fig:architecture}
 \end{figure}
 
@@ -474,8 +451,39 @@ requires timing matched audio requests through generation.
 \label{app:asr-answers}
 \input{asr_selected_answers.tex}
 
-\section{ASR reproduction commands}
+\section{ASR test and profiling output}
 \label{app:repro}
+
+The following excerpt is from the RTX A6000 run that executed the supplied
+tests and profiled one transcription with all CUDA groups enabled. The
+operation times come from the profiling pass. The reported transcription
+mean and standard deviation come from the three timing runs.
+
+\begin{verbatim}
+GPU: NVIDIA RTX A6000 (sm_86)
+Task 1 (RoPE): ALL PASS
+Task 2 (reductions): ALL PASS
+Task 3 (tiled GEMM): ALL PASS
+Task 4 (attention): ALL PASS
+
+GPU time per operation, one transcription (1993.3 ms in kernels):
+operation    runs on    calls   total ms   share
+linear       cuda        2757     1670.0   83.8%
+attention    cuda         396      306.9   15.4%
+rmsnorm      cuda         741        6.2    0.3%
+silu_mul     cuda         364        3.2    0.2%
+rope         cuda         396        2.6    0.1%
+layernorm    cuda          65        1.8    0.1%
+softmax      cuda          13        1.8    0.1%
+embedding    cuda          13        0.6    0.0%
+im2col       cuda           2        0.1    0.0%
+
+Time: 1986.1 ms per transcription (+/- 4.4 ms), 152.8 ms per token
+Accuracy: 100.0%
+Status: PASS
+\end{verbatim}
+
+The commands below reproduce the tests, profile and configuration timings.
 
 \begin{verbatim}
 conda activate mls-asr
@@ -560,16 +568,11 @@ Offline audits:
 \path{rag/results/report-quality-cost/summary.json}.
 The script reads both fresh answer comparisons separately, preserves the full score axes,
 and uses no model or API calls.
-\par\noindent\textbf{System architecture figure, supplied SVG and conversion provenance:}
-\path{report/latex_template/figures/ASR_RAG_System_Architecture_No_Title.svg},
-\path{report/convert_architecture_svg.py},
-\path{report/latex_template/figures/ASR_RAG_System_Architecture_No_Title.pdf},
-\path{rag/results/report-architecture/svg-summary.json}.
-The main-body variant reflows and abbreviates this design, retaining the
-original SVG unchanged:
-\path{report/draw_readable_architecture.py},
-\path{report/latex_template/figures/architecture-report.pdf},
-\path{rag/results/report-architecture/readable-summary.json}.
+\par\noindent\textbf{System architecture figure:}
+Editable source: \path{report/latex_template/figures/audio-rag-architecture.drawio}.
+Vector PDF: \path{report/latex_template/figures/audio-rag-architecture.pdf}.
+The example uses query \texttt{q\_ce474d8f8d548797} from
+\path{rag/results/qwen4-retrieval-3724174/full/rankings.jsonl}.
 \par\noindent\textbf{Offline practice error diagnostic:}
 \path{rag/extensions/analyze_practice_errors.py},
 \path{rag/experiments/practice-error-analysis-v1.json},
@@ -848,6 +851,7 @@ characterize the diagnostic sample. The short-selling example is
 \section*{AI declaration}
 We used ChatGPT for CUDA/RAG implementation, experiment execution, offline
 audits, figures, and report drafting and revision.
+We used Codex to lay out Figure~\ref{fig:architecture} in draw.io.
 EuroLLM via ELM generated answers and automated judgements as described in the
 methodology.
 The authors confirmed the representative diagnostic cases and remain responsible
