@@ -89,7 +89,9 @@ Our system transcribes a spoken question with automatic speech recognition
 (ASR), then uses the transcript as the query in a retrieval-augmented
 generation (RAG) pipeline~\citep{lewis2020rag}. A language model uses the
 retrieved documents to answer the question. Finding and processing those
-documents contributes to the time the user waits for an answer.
+documents contributes to the time the user waits for an answer. We benchmark
+CUDA replacements for the ASR operators, then fix the transcript to measure
+what evidence selection changes downstream.
 
 The choice of retriever determines which documents the system finds. Dense
 retrieval uses similarity between embeddings, while BM25 scores matches
@@ -117,15 +119,42 @@ generation?
 \section{System and Technical Approach}
 \label{sec:approach}
 
+\subsection{CUDA operators and transcription latency}
+\label{sec:asr-kernels}
+We implement four CUDA operator groups for the supplied GLM-ASR-Nano model.
+All four supplied test suites pass on an NVIDIA RTX A6000. For Task~1, the
+encoder rotary position embedding (RoPE) reads and writes the rotated query
+and key prefixes, moving 15.36~MB per call. The harness measures 600~GB/s,
+78\% of peak. For Task~2, we implement reductions and normalisation. Our
+online softmax combines the maximum and sum passes, issuing two global input
+loads per element including the output pass, compared with three for the
+textbook version.
+
+For Task~3, our $16\times16$ shared-memory GEMM tile computes one result per
+thread. Register tiling that reuses operands across several results per thread
+could help explain cuBLAS's lead on encoder \texttt{q\_proj} (20.31 versus
+2.97~TFLOP/s). For Task~4, tiled attention with online softmax avoids storing
+the full encoder score matrix, which would take 180~MB in float32. One block
+uses 17,536~bytes of shared memory. Appendix~\ref{app:asr-answers} gives the
+questions and derivations.
+
+On the same 3.50~s clip, three runs per configuration give mean transcription
+times of 521.3~ms with GPU PyTorch, 483.1~ms with the Task~1 preset and
+1,986.1~ms with all CUDA groups. The timer starts with the model loaded and
+audio features prepared. All three reproduce the reference words. The Task~1
+preset also enables supplied CUDA kernels, so the timing covers the whole
+preset. In the separate all-CUDA profiling pass, linear operations account for
+83.8\% of kernel time and attention for 15.4\%. Together with the GEMM
+throughput gap, this points to linear layers as the main optimisation target.
+
 \subsection{Dense5 baseline}
 The supplied pipeline transcribes each audio question with GLM-ASR-Nano and
 encodes the transcript with \texttt{enc\_a}~\citep{reimers2019sbert}. Exact cosine
 search ranks 24,000 document embeddings. Dense5 sends the first five complete
 records in dense order, along with the transcript, to EuroLLM via ELM. The thirty
 questions in our ASR interface check yield identical transcripts and retrieval
-recall under the two tested ASR backends. We reuse a saved transcript for each
-question in every RAG comparison to hold the upstream input fixed. Appendix
-\ref{app:asr-answers} contains the selected ASR coursework answers.
+recall in the CUDA and reference caches. We reuse a saved transcript for each
+question in the RAG comparisons to hold the upstream input fixed.
 
 \begin{figure}[t]
 \centering
@@ -340,6 +369,9 @@ principle to reranking. At similar prompt lengths, the attributed cost still
 increases by 6.022~s on practice and 5.690~s on dev per question. Reranking
 accounts for 5.743 and 5.621~s, respectively, or about 95\% of the extra time
 on practice. API time can also vary with the generated output and service load.
+A separate ten-query probe with generation disabled records 2.622~s for ASR
+out of 2.646~s of mean audio-to-context stage time. The clip benchmark, this
+probe and the cached answer runs cover different workloads and timing endpoints.
 
 \subsection{Where recall and answer scores diverge}
 \label{sec:failure-analysis}
@@ -381,52 +413,55 @@ misreading is a separate problem with how the answer was assessed
 
 \subsection{Targeted follow-up comparisons}
 \label{sec:follow-up}
-We test BM25 and rank fusion to look for evidence that dense retrieval misses.
-On some dev questions, BM25 finds labelled documents outside the dense top
-100. Dense retrieval retains the highest mean Recall@5.
+On 125 dev questions, BM25 finds labelled documents outside the dense top
+100 on eight queries and has higher Recall@5 than dense on six. Mean recall is
+0.3795 for dense, 0.2082 for BM25 and 0.3025 for rank fusion. Fusion runs both
+searches, including the BM25 stage, which takes 57.9~ms on average on CPU.
+The tested fusion therefore adds work while lowering mean top-five coverage.
 
-For shorter contexts, we verify that we can construct overlapping sentence
-windows from the same reranked documents. The pilot uses a shared token cap
-to compare passage selection with prefix truncation. The answer comparison
-remains open.
+In the passage pilot preflight, we construct 495 overlapping windows from
+the reranked documents for 24 questions. We set a shared 768-token cap for
+passage selection and prefix truncation. The answer scores and the net timing
+effect of passage scoring and generation remain unmeasured.
 
-With the evidence fixed, we test prompts that ask the generator to check
-whether a rule applies or to answer the parts supported by the evidence.
-Both raise some per-question scores, with mixed results across the sample.
-For example, the applicability prompt distinguishes short selling securities
-directly from buying an ETF that provides short exposure. The source text
-supports this distinction (Appendix~\ref{app:alternative-rag}).
+With the evidence fixed, the applicability and partial-answer prompts raise
+scores on seven and six of 24 questions, respectively. On the short-selling
+question, the applicability prompt distinguishes direct short selling from
+ETF exposure and raises the judge score from 0.417 to 0.500. The two pilot
+means fall by 0.021 and 0.014, while observed mean generation API times rise by
+1.17~s and 0.60~s against their respective baselines. The score and timing
+measurements favour the original prompt in these pilots
+(Appendix~\ref{app:alternative-rag}).
 
 \section{Discussion and Conclusion}
 \label{sec:conclusion}
 
-Selecting better evidence within five documents improved the mean practice
-score at a similar prompt length. The gain came with an estimated 5.7--6.0~s
-per question across the changed stages, mostly in reranking. The estimate
-combines stage timings from cached-input runs. The separate ten-question
-audio probe stops at context construction, before generation. Qwen-0.6B
-reranks faster than 4B and improves recall over Dense5. Its answer benefit
-remains open.
+The follow-up comparisons identify where the alternatives may help.
+\citet{meng2026ranking} recover more evidence with shorter BM25 index entries
+in deep research, making the indexed text a variable to test alongside lexical
+coverage. At equal retrieval budgets, \citet{lu2026hichunk} improve answer
+quality on evidence-dense tasks. In our case, a shorter prompt would need to
+preserve conditions such as the timing in the crisis-assets question, and
+generation savings would need to cover passage scoring. The gains from worked
+examples in agricultural QA reported by \citet{jegede2026advisory} motivate
+testing an example of when a rule applies alongside our instructions.
 
-The additional lexical hits in Section~\ref{sec:follow-up} make the indexed
-text worth examining. \citet{meng2026ranking} recover more evidence with
-shorter BM25 index entries in their deep-research setting. At fixed retrieval
-budgets, \citet{lu2026hichunk} improve answer quality on evidence-dense tasks.
-For our questions, a shorter prompt would need to preserve conditions such
-as the timing in the crisis-assets case, and generation savings would need
-to cover passage scoring. \citet{jegede2026advisory} improve correctness in
-agricultural QA with worked examples while holding retrieval and the model
-fixed. An example that shows when a rule applies would extend the instructions
-we tested in the prompt pilot.
+The paired answer intervals describe query variation with a fixed checkpoint
+and one generation and judgement per condition. The effect of the judge's
+misreadings on the mean gain remains unknown. Qwen-0.6B improves recall over
+Dense5 and reranks faster than 4B. Its effect on answer scores remains open.
 
-The answer comparisons use the same judge and rubric throughout. The cases
-in Section~\ref{sec:failure-analysis} show that the judge can misread its
-references. We have evidence of those specific errors, and their effect on
-the mean score gain is unknown. On the previously inspected dev split the
-paired interval for the answer gain still includes zero. The intervals
-describe query variation with a fixed checkpoint and one generation and
-judgement per condition. Whether the observed benefit justifies the extra
-wait in a voice interface depends on its response-time target.
+With the ASR transcripts and generator fixed, reranking the same top 100
+candidates to select five improves recall on both splits. On practice, the
+mean judge score rises from 0.3374 to 0.3819 and mean input length changes
+from 1,290 to 1,267 tokens. On the previously inspected dev split, the
+answer-score interval includes zero.
+Evidence selection and generation take an estimated 6.022~s longer per
+practice question, mostly due to reranking. Upstream, the Task~1 preset saves
+time on the reference clip, and all-CUDA takes longer than GPU PyTorch. With
+initial retrieval held fixed, ASR would need to save more time than the answer
+stage adds to shorten the full audio-to-answer wait. Evaluating that trade-off
+requires timing matched audio requests through generation.
 
 % References are excluded from the main-body page limit.
 \bibliography{references}
