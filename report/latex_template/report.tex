@@ -173,42 +173,49 @@ matched-source condition above applies to the reranker's input.
 \section{Experimental Design}
 \label{sec:methodology}
 
-\paragraph{Comparisons.}
-We first compare five configurations on 350 practice and 125 dev questions:
-dense top-five, dense top-twenty, MiniLM top-five, dense budget, and MiniLM
-budget. The main MiniLM arms rerank 100 candidates. We vary the pool size
-and compare L6 with L12 to investigate why MiniLM loses top-five coverage.
+We first compare ways to change the evidence that Dense5 sends to the
+generator, using 350 practice and 125 dev questions. We pass the first twenty
+documents in dense order to test the effect of a larger context. To test
+selection at a fixed document count, we rerank the top 100 with MiniLM-L6 and
+keep five. We also compare dense and reranked contexts under the same
+4,096-token budget. To examine MiniLM's loss of top-five coverage, we vary the
+candidate depth and compare the L6 and L12 checkpoints.
 
-The follow-up study uses its own frozen practice rankings and compares dense
-order, MiniLM-L6, matched Qwen-0.6B and Qwen-4B, and a 4B variant with a
-2,048-token scoring input that includes Qwen's template. Qwen runs in BF16 and
-MiniLM in FP32. The checkpoints also differ in architecture, training and
-tokenization. We generate fresh answers for Dense5 and matched Qwen-4B, shuffle
-the order of the two arms per query, and repeat that fixed comparison on the
-previously inspected dev split without further tuning. Each split has its own
-fresh Dense5 answers and judgements.
+For the follow-up retrieval experiment, we use a separate frozen set of
+practice rankings and share each query's top 100 candidates across selectors.
+We compare the original dense order with MiniLM-L6, Qwen-0.6B and Qwen-4B,
+controlling how much of each document the rerankers can see. We also test
+Qwen-4B with a longer scoring input of up to 2,048 tokens, including its
+template. Qwen runs in BF16 and MiniLM in FP32. The checkpoints also differ in
+architecture, training and tokenization.
 
-\paragraph{Quality.}
-Both answer arms use the same prompt and
-\texttt{utter-project/EuroLLM-22B-Instruct-2512}~\citep{martins2024eurollm}
-at temperature 0.1. We measure per-query recall against relevance judgements
-(qrels) using the selected document IDs. The public judge uses EuroLLM at
-temperature 0 with the question, candidate answer and qrel-derived reference
-text. For each query, the score $s$ is the sum of correctness, grounding and
-completeness, each on a 0--4 scale, divided by 12. We generate and judge each
-answer once. The average of the per-question score differences is our
-paired effect estimate. The 95\% intervals use 5,000 paired query-bootstrap
-resamples in the initial study and 2,000 for Qwen. They quantify variation
-across questions under the observed runs.
+To test whether reranking changes the answers, we generate fresh responses
+for Dense5 and matched Qwen-4B and shuffle the order of the two conditions for
+each query. We then repeat the comparison on the previously inspected dev
+split with the same configuration, generating and judging new answers for
+both conditions. Within each comparison, both conditions use the same prompt
+and \texttt{utter-project/EuroLLM-22B-Instruct-2512}~\citep{martins2024eurollm}
+at temperature 0.1.
 
-\paragraph{Time.}
-For the selector comparison, we time warmed runs on an NVIDIA RTX A6000 at
-batch size 8. Reranking time includes tokenization, transfer, inference and
-score materialization. Generation time is API wall time, including remote
-service effects. To compare answer configurations, we add the recorded
-mean reranking time from the earlier GPU run, mean context-building time and
-mean API generation time. This attributed stage cost excludes model loading,
-ASR, initial search and offline evaluation.
+We compute recall for each query by comparing the selected document IDs with
+the relevance judgements (qrels). To evaluate the answer, the public judge
+uses EuroLLM at temperature 0 and receives the question, candidate answer and
+reference text drawn from the qrels. We sum the scores for correctness,
+grounding and completeness, each on a 0--4 scale, and divide by 12. After one
+generation and judgement per answer, we average the within-question score
+differences. For the 95\% paired bootstrap intervals, we resample questions
+with both scores kept together, using 5,000 resamples in the initial study and
+2,000 in the Qwen comparison. These intervals describe variation across
+questions under the observed runs.
+
+We time the MiniLM and Qwen selector comparison after warm-up on NVIDIA RTX
+A6000 GPUs with batch size 8. The timer covers tokenization, transfer,
+inference and copying the scores. Generation time is the wall-clock duration
+of the ELM API call and includes time spent at the remote service. For each
+answer configuration, we estimate the per-query cost by adding mean reranking
+time from the GPU runs to mean context-building and API generation times from
+the answer runs. The estimate excludes model loading, ASR, initial search and
+offline evaluation.
 
 \section{Results and Analysis}
 \label{sec:results}
