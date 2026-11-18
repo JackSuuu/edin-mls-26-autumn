@@ -91,12 +91,10 @@ generation (RAG) pipeline~\citep{lewis2020rag}. A language model uses the
 retrieved documents to answer the question. Finding and processing those
 documents contributes to the time the user waits for an answer.
 
-The choice of retriever determines which documents the system finds. Dense
-retrieval uses similarity between embeddings, while BM25 scores matches
-between query and document terms~\citep{robertson2009bm25}. A hybrid retriever
-can combine both rankings. Once the system has a list of candidates, it can
-limit the length of the prompt with a token budget or split documents into
-passages and send only the most relevant excerpts.
+Before retrieval starts, the user also waits for a transcript. We measure
+whether replacing PyTorch operators with our CUDA kernels reduces that wait.
+We then hold the transcript fixed to study a different decision: which
+documents are worth sending to the generator?
 
 One way to give the model more evidence is to pass it more of the search
 results. In our initial comparison, sending twenty documents instead of five
@@ -219,6 +217,33 @@ offline evaluation.
 
 \section{Results and Analysis}
 \label{sec:results}
+
+\subsection{What limits transcription speed?}
+We implemented four CUDA kernel groups for GLM-ASR-Nano: rotary position
+embedding (RoPE), reductions and normalisation, tiled matrix multiplication
+(GEMM), and attention with online softmax. All four passed the supplied tests.
+We then transcribed the same reference clip three times per configuration on
+an RTX A6000. All configurations produced the reference transcript.
+
+\begin{center}
+\begin{tabular}{@{}lr@{}}
+\toprule
+ASR configuration & Mean transcription time (ms) \\
+\midrule
+PyTorch baseline & 521.3 \\
+Task 1 enabled & 483.1 \\
+All CUDA groups enabled & 1986.1 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+All-CUDA took 3.81 times as long as PyTorch on this clip. Linear operations
+accounted for 83.8\% of all-CUDA kernel time and attention for 15.4\%.
+The encoder query projection illustrates the bottleneck: our tiled GEMM
+reached 2967 GFLOP/s versus 20305 for cuBLAS on the same shape. The profile
+identifies where time went, not each operator's share of the slowdown.
+The Task 1 configuration also enables course-provided CUDA operators, so its
+timing does not isolate RoPE.
 
 \subsection{What does more context buy?}
 In the original practice run, dense retrieval covers 0.421 of labelled
@@ -343,13 +368,24 @@ In another case, the judge attributes a Bloomberg claim to the reference
 documents, while the claim comes from other retrieved text. The first case
 illustrates misuse of available evidence. The second identifies a discrepancy
 in the judge's explanation. The source checks establish these observations in
-the reviewed examples. Appendix~\ref{app:error-analysis} describes case selection,
+the reviewed examples. A separate AI review of six full-coverage Qwen zeros
+found a particularly clear counterexample: the car-return answer agrees with
+gold that the buyer cannot return the car after a month, yet the judge says
+that gold never mentions returning it. We retain the original scores: a faulty
+explanation does not tell us what numerical score to substitute. The 121 zeros
+out of 350 are judge decisions, not a verified answer error rate.
+Appendix~\ref{app:error-analysis} describes case selection,
 review status and the original scores.
 
 \section{Discussion and Conclusion}
 \label{sec:conclusion}
 
-Reranking from a shared pool improves early retrieval on both splits. With
+The two stages reward different choices. On the reference clip, replacing
+PyTorch's operators with correct custom kernels increased transcription time;
+the all-CUDA profile points to linear operations as the first target for further
+work. Downstream, simply sending more documents raised recall without a
+detectable answer-score gain. Matched Qwen-4B reranking, in contrast, improves
+early retrieval on both splits. With
 five documents and similar mean input length, Qwen-4B raises the practice
 answer score by 0.0445 under our judging protocol. The dev score interval leaves
 the downstream benefit uncertain. The extra 5.7--6.0~s of attributed per-query
@@ -686,7 +722,7 @@ to obtain an interval excluding zero.
 % or to complete other tasks. In all cases, you remain entirely responsible
 % for the material you produce.
 \section*{AI declaration}
-We used ChatGPT for CUDA/RAG implementation, experiment execution, offline
+We used OpenAI's ChatGPT for CUDA/RAG implementation, experiment execution, offline
 audits, figures, and report drafting and revision.
 EuroLLM via ELM generated answers and automated judgements as described in the
 methodology.
