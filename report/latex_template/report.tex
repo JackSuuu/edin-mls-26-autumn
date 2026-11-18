@@ -85,32 +85,34 @@
 \section{Introduction}
 \label{sec:introduction}
 
-A spoken question enters a retrieval-augmented generation (RAG)
-system~\citep{lewis2020rag} as a transcript from automatic speech recognition
-(ASR). The system must find
-evidence for the answer while keeping the wait for a response short. We study
-the decision between retrieval and generation: which documents should the
-generator receive?
+Our system transcribes a spoken question with automatic speech recognition
+(ASR), then uses the transcript as the query in a retrieval-augmented
+generation (RAG) pipeline~\citep{lewis2020rag}. A language model uses the
+retrieved documents to answer the question. Finding and processing those
+documents contributes to the time the user waits for an answer.
 
-A dense retriever can surface useful documents below its first five results.
-Passing more documents to the generator increases its input, while reranking
-the candidates adds a separate inference step. Retrieved text can also be
-redundant or hard for the generator to use. \citet{deng2025influence} assess
-evidence by its contribution to generation. \citet{louis2026oscar} account for
-the cost of processing evidence alongside the cost of generating an answer.
+The choice of retriever determines which documents the system finds. Dense
+retrieval uses similarity between embeddings, while BM25 scores matches
+between query and document terms~\citep{robertson2009bm25}. A hybrid retriever
+can combine both rankings. Once the system has a list of candidates, it can
+limit the length of the prompt with a token budget or split documents into
+passages and send only the most relevant excerpts.
 
-\textbf{Research question.} With ASR transcripts and the generator fixed, can
-reranking the same top-100 candidates to select five documents turn higher
-retrieval recall into better answers at a comparable generator input length?
-What is the additional time for evidence selection and generation?
+One way to give the model more evidence is to pass it more of the search
+results. In our initial comparison, sending twenty documents instead of five
+covered more of the labelled evidence, with no detectable improvement in
+answer scores. The generator also had to process roughly four times as many
+input tokens, which adds to the cost of using retrieved
+evidence~\citep{louis2026oscar}.
 
-We implement a token-budgeted context builder and a pipeline that controls
-which source text the rerankers see, then generates and evaluates answers in
-pairs. Sending twenty documents increases labelled coverage, with an uncertain
-answer-score gain. Qwen-4B reranking improves Recall@5 on practice and dev. On
-practice it raises the mean judge score from 0.3374 to 0.3819 at similar input
-length, adding 6.022~s of attributed selection and generation time per query.
-The dev answer-score interval includes zero.
+The extra coverage shows that some labelled documents lie below the initial
+cutoff. Reranking can move these documents into the top five while keeping the
+number of documents sent to the generator fixed. A document can be relevant to
+the question and still add little to the
+answer~\citep{deng2025influence}. With the ASR transcripts and generator fixed,
+can reranking the same top 100 candidates to select five documents turn
+higher recall into better answers at similar input lengths? How much extra
+time does this add across evidence selection and answer generation?
 
 \section{System and Technical Approach}
 \label{sec:approach}
@@ -677,8 +679,8 @@ to obtain an interval excluding zero.
 % or to complete other tasks. In all cases, you remain entirely responsible
 % for the material you produce.
 \section*{AI declaration}
-OpenAI coding assistance was used for CUDA/RAG implementation, experiment
-execution, offline audits, figures, and report drafting and revision.
+We used ChatGPT for CUDA/RAG implementation, experiment execution, offline
+audits, figures, and report drafting and revision.
 EuroLLM via ELM generated answers and automated judgements as described in the
 methodology.
 The authors confirmed the representative diagnostic cases and remain responsible
