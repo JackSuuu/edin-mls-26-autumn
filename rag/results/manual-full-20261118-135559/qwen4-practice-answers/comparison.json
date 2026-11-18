@@ -1,0 +1,80 @@
+{
+  "queries": 350,
+  "split": "practice",
+  "completed": true,
+  "arms": {
+    "dense5": {
+      "mean_correctness": 1.4542857142857142,
+      "mean_grounding": 1.502857142857143,
+      "mean_completeness": 1.1914285714285715,
+      "mean_normalised_answer_score": 0.34571428571428553,
+      "mean_local_input_tokens": 1289.7114285714285,
+      "server_usage_coverage": 350,
+      "mean_server_input_tokens": 1289.7114285714285,
+      "mean_generation_ms": 4274.5568780601025,
+      "median_generation_ms": 4067.7430694922805,
+      "mean_attributed_selection_plus_generation_ms": 4276.3543473396985
+    },
+    "qwen4_matched5": {
+      "mean_correctness": 1.5685714285714285,
+      "mean_grounding": 1.58,
+      "mean_completeness": 1.2885714285714285,
+      "mean_normalised_answer_score": 0.3697619047619048,
+      "mean_local_input_tokens": 1267.3085714285714,
+      "server_usage_coverage": 350,
+      "mean_server_input_tokens": 1267.3085714285714,
+      "mean_generation_ms": 4456.859278258468,
+      "median_generation_ms": 4295.773921534419,
+      "mean_attributed_selection_plus_generation_ms": 10061.146515767488
+    }
+  },
+  "paired_qwen4_minus_dense": {
+    "correctness": {
+      "mean_delta": 0.11428571428571428,
+      "query_bootstrap_95pct_interval": [
+        -0.02857142857142857,
+        0.2542857142857143
+      ],
+      "improved": 73,
+      "worse": 49,
+      "tied": 228
+    },
+    "grounding": {
+      "mean_delta": 0.07714285714285714,
+      "query_bootstrap_95pct_interval": [
+        -0.06857142857142857,
+        0.22285714285714286
+      ],
+      "improved": 95,
+      "worse": 81,
+      "tied": 174
+    },
+    "completeness": {
+      "mean_delta": 0.09714285714285714,
+      "query_bootstrap_95pct_interval": [
+        -0.03142857142857143,
+        0.22857142857142856
+      ],
+      "improved": 92,
+      "worse": 71,
+      "tied": 187
+    },
+    "normalised_answer_score": {
+      "mean_delta": 0.024047619047619047,
+      "query_bootstrap_95pct_interval": [
+        -0.009285714285714284,
+        0.05761904761904762
+      ],
+      "improved": 101,
+      "worse": 88,
+      "tied": 161
+    }
+  },
+  "limitations": [
+    "Practice exploratory comparison",
+    "One generation and one judge call per answer",
+    "Same model generates and judges; public qrel evidence is not exhaustive",
+    "Query bootstrap excludes generation/judge rerun uncertainty",
+    "Attributed rerank cost is not measured end-to-end latency"
+  ]
+}
