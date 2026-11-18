@@ -102,17 +102,17 @@ One way to give the model more evidence is to pass it more of the search
 results. In our initial comparison, sending twenty documents instead of five
 covered more of the labelled evidence, with no detectable improvement in
 answer scores. The generator also had to process roughly four times as many
-input tokens, which adds to the cost of using retrieved
-evidence~\citep{louis2026oscar}.
+input tokens.
 
 The extra coverage shows that some labelled documents lie below the initial
 cutoff. Reranking can move these documents into the top five while keeping the
-number of documents sent to the generator fixed. A document can be relevant to
-the question and still add little to the
-answer~\citep{deng2025influence}. With the ASR transcripts and generator fixed,
-can reranking the same top 100 candidates to select five documents turn
-higher recall into better answers at similar input lengths? How much extra
-time does this add across evidence selection and answer generation?
+number of documents sent to the generator fixed. \citet{deng2025influence}
+assess a document's value by measuring how removing it affects the generator.
+We therefore evaluate the answers produced by our five-document selections.
+With the ASR transcripts and generator fixed, can reranking the same top 100
+candidates turn higher recall into better answers at similar input lengths?
+How much extra time does this add across evidence selection and answer
+generation?
 
 \section{System and Technical Approach}
 \label{sec:approach}
@@ -178,8 +178,15 @@ generator, using 350 practice and 125 dev questions. We pass the first twenty
 documents in dense order to test the effect of a larger context. To test
 selection at a fixed document count, we rerank the top 100 with MiniLM-L6 and
 keep five. We also compare dense and reranked contexts under the same
-4,096-token budget. To examine MiniLM's loss of top-five coverage, we vary the
-candidate depth and compare the L6 and L12 checkpoints.
+4,096-token budget.
+
+\citet{meng2026ranking} find that a deeper reranking pool can increase the
+evidence recovered across an agent's searches. To test whether depth helps
+in our single-search pipeline, we rerank 20, 50 and 100 candidates with
+MiniLM-L6 on practice and measure recall in the five documents passed to the
+generator.
+We also compare L6 and L12 at a fixed depth to check how the checkpoint
+affects which documents are selected.
 
 For the follow-up retrieval experiment, we use a separate frozen set of
 practice rankings and share each query's top 100 candidates across selectors.
@@ -220,11 +227,10 @@ offline evaluation.
 \section{Results and Analysis}
 \label{sec:results}
 
-\subsection{What does more context buy?}
-In the original practice run, dense retrieval covers 0.421 of labelled
-documents at rank 5 and 0.770 at rank 100. Relevant candidates therefore exist
-below Dense5's cutoff. Table~\ref{tab:context-quantity} shows what happens when
-we give the generator more of them.
+\subsection{Coverage and answer quality with a larger context}
+The initial dense ranking covers 0.421 of labelled documents at rank 5 and
+0.770 at rank 100 on practice. We first test whether the generator benefits
+from seeing more of the evidence already in that ranking.
 
 \begin{table}[t]
 \centering\small
@@ -247,24 +253,25 @@ Dev (125) & Dense5 & .379 & 1209 & .3307 & 4.532 \\
 \end{tabular}
 \end{table}
 
-On dev, Dense20 raises selected-document recall by about 0.20 and gives the
-generator about four times as many input tokens. The paired mean score
-difference is $0.0000$ with a 95\% interval of $[-0.0440,0.0427]$. The budget
-arm keeps much of the coverage increase with fewer input tokens than Dense20.
-The initial paired intervals all include zero
-(Appendix~\ref{app:initial-paired}). These comparisons leave the contributions of
-redundant evidence, generation variability and judge variability unresolved.
-We use five documents as the common output size for the reranker comparison.
+On dev, Dense20 raises selected-document recall by 0.200, with roughly four
+times the input tokens and 1.339~s more median generation time per query
+(Table~\ref{tab:context-quantity}). The mean paired answer-score difference is
+$0.0000$ (95\% interval $[-0.0440,0.0427]$). A token cap retains much of the
+coverage gain, and the initial answer-score intervals all include zero
+(Appendix~\ref{app:initial-paired}). Since expanding the prompt changes both
+the amount and the mix of evidence, this comparison leaves their separate
+effects unresolved. We therefore return to five documents and change which
+ones the generator receives.
 
-\subsection{Can reranking improve the first five results?}
-MiniLM-L6 achieves Recall@5 of 0.411, 0.399 and 0.388 as candidate depth
-increases from 20 to 50 to 100 on practice, versus Dense5's 0.421. Mean
-reranking cost rises from 39 to 97 to 194~ms across those depths. At depth 100,
-L6 removes 83 labelled query--document pairs from Dense5's selections and
-adds 47. The matched L12 control recovers some coverage relative to L6
-($+0.0225$ Recall@5, 95\% interval $[0.0022,0.0427]$), leaving an uncertain
-difference against Dense5 (Appendix~\ref{app:model-control}). The larger pools
-leave L6 below Dense5, pointing to ranking within the available pool.
+\subsection{Candidate depth and reranker choice}
+On practice, MiniLM-L6 reaches Recall@5 of 0.411, 0.399 and 0.388 at depths
+20, 50 and 100, against 0.421 for Dense5. Mean
+reranking time rises from 39 to 97 to 194~ms. At depth 100 the model drops 83
+labelled query--document pairs from the original top five and adds 47. The
+lost evidence was already available in the pool, placing this loss at the
+selection stage. Switching to L12 recovers 0.0225 Recall@5 relative to L6
+(95\% interval $[0.0022,0.0427]$), with an uncertain difference against Dense5
+(Appendix~\ref{app:model-control}).
 
 \begin{table}[t]
 \centering\small
@@ -285,26 +292,27 @@ Qwen-4B native-2048 & .5306 & .5995 & .5398 & 7.328 \\
 \end{tabular}
 \end{table}
 
-Matched Qwen-4B raises Recall@5 by 0.1049 over dense
-($[0.0726,0.1378]$). Extending 4B's scoring input beyond the matched prefix
-adds 0.0043 ($[-0.0036,0.0137]$) while adding 1.505~s to median reranking
-time (Table~\ref{tab:qwen-retrieval}). The larger recall gain is already
-present with source visibility controlled. The checkpoint comparison leaves
-the effect of parameter count unresolved.
+With the same top 100 candidates for each selector and source visibility
+matched to MiniLM, both Qwen checkpoints improve Recall@5 over Dense5
+(Table~\ref{tab:qwen-retrieval}). Matched Qwen-4B gains 0.1049 over Dense5
+($[0.0726,0.1378]$). Allowing 4B to read beyond the matched prefix adds
+1.505~s to median reranking time for an estimated recall gain of 0.0043
+($[-0.0036,0.0137]$). Most of the observed recall gain is already present when
+the rankers see the same source text. Checkpoint differences also include
+training, architecture and tokenization, leaving the effect of parameter
+count unresolved. We compare matched Qwen-4B and Dense5 on fresh paired
+answers to test whether the recall gain carries through to generation.
 
-\subsection{Do retrieval gains reach the answer?}
-On practice, matched Qwen-4B increases the mean judge score by 0.0445
-($[0.0112,0.0788]$), with 115 questions scoring higher, 80 lower, and 155
-tied. Both arms supply five full documents and their mean input lengths
-differ by 23 tokens (Table~\ref{tab:qwen-answers}). The answer comparison
-therefore captures the effect of changing which records the generator sees
-and their order, under the observed generation and judging protocol.
-
-On the previously inspected dev split, the frozen selector increases
-Recall@5 by 0.0773 ($[0.0200,0.1339]$). The mean answer-score difference
-is 0.0567 ($[-0.0007,0.1127]$), with 40 better, 30 worse and 55 tied. The
-retrieval gain recurs, while the interval for the mean answer gain includes
-zero. Appendix~\ref{app:qwen-dev} reports the other ranking metrics.
+\subsection{Answer gains and their latency cost}
+On practice, matched Qwen-4B raises the mean judge score from 0.3374 to 0.3819,
+a paired gain of 0.0445 ($[0.0112,0.0788]$). The correctness subscore rises
+by 0.160 on its 0--4 scale (Appendix~\ref{app:qwen}). Both conditions supply
+five full documents, and their mean prompt lengths differ by 23 tokens. The
+comparison tests a change in document identity and order at similar input
+lengths (Table~\ref{tab:qwen-answers}). On the previously inspected dev split, the
+frozen selector again improves Recall@5 ($+0.0773$, $[0.0200,0.1339]$).
+The answer-score gain of 0.0567 has an interval that includes zero
+($[-0.0007,0.1127]$).
 
 \begin{table}[t]
 \centering\small
@@ -326,47 +334,99 @@ Dev & Dense5 & .3795 & .3133 & 1209 & .000 & 4.571 & 4.573 \\
 \end{tabular}
 \end{table}
 
-\subsection{Where does the extra time go?}
-The attributed cost increases by 6.022~s per practice question and 5.690~s per
-dev question. The added reranker accounts for 5.743 and 5.621~s, respectively.
-Mean API generation time differs by about 0.28~s on practice and 0.07~s on
-dev. That smaller difference also reflects the generated outputs and changing
-API load. The main measured cost increase comes before generation.
+\citet{louis2026oscar} count both compression and generation FLOPs when
+evaluating the cost of shortening a prompt. Our stage timings apply the same
+principle to reranking. At similar prompt lengths, the attributed cost still
+increases by 6.022~s on practice and 5.690~s on dev per question. Reranking
+accounts for 5.743 and 5.621~s, respectively, or about 95\% of the extra time
+on practice. API time can also vary with the generated output and service load.
 
-\subsection{Why can an answer fail with the evidence present?}
-On practice, 53 questions move from a zero judge score to a positive score,
-while 36 move in the opposite direction. Thirty of the 121 Qwen zeros include
-every labelled document ID. Two source checks show why document coverage and
-answer scores can diverge. One answer applies a company tax-loss rule to
-pension contributions even though both labelled pension documents are present.
-In another case, the judge attributes a Bloomberg claim to the reference
-documents, while the claim comes from other retrieved text. The first case
-illustrates misuse of available evidence. The second identifies a discrepancy
-in the judge's explanation. The source checks establish these observations in
-the reviewed examples. Appendix~\ref{app:error-analysis} describes case selection,
-review status and the original scores.
+\subsection{Where recall and answer scores diverge}
+\label{sec:failure-analysis}
+Among the 82 practice questions where Qwen-4B improves Recall@5, the mean
+paired answer-score gain is 0.125. Of these, 34 score higher, 37 tie and 11
+score lower. Another 77 score higher with unchanged recall, which can hide
+changes in the selected documents and their order
+(Appendix~\ref{app:recall-score}). These are paired observations from single
+generations and judgements.
+
+\citet{leung2026ragerrors} diagnose RAG errors by tracing them to individual
+pipeline stages. Of Qwen-4B's 121 zero-score answers, 32 had no labelled
+document in the top-100 pool and 30 had labelled candidates but none in the
+top five. Full labelled coverage still leaves 30 of 131 answers at zero.
+To examine what happens after evidence reaches the generator, we check the
+source text against the saved answer. In the Irish-pension case, both labelled
+documents rank first and second, yet the answer applies a rule for carrying
+forward company tax losses to pension contribution limits. This is a failure
+of rule applicability after retrieval, akin to the rule-application errors
+that \citet{yao2026law} identify with gold evidence in legal QA.
+
+\citet{ru2024ragchecker} check individual claims against the retrieved text
+and the reference answer separately. We make that distinction when reading
+the judge's reasons, since our generator sees the retrieved top five and the
+judge sees the labelled references. In the software-recommendation question,
+Qwen-4B recovers the sole labelled document, raising Recall@5 from 0 to 1.
+The answer lists all three tools named in that document. Both answers receive
+zero. The judge calls a claim about Bloomberg's data unsupported, then
+attributes that same claim to the labelled document. The claim appears in a
+different retrieved document that the generator received.
+
+On the crisis-assets question, our answer gets the timing wrong. It says gold
+and silver are useful \emph{during} the crisis. The source says \emph{after},
+and the judge correctly flags that error. The judge also says the references
+omit helicopters and connections, both of which appear in the source text.
+Our generator changed a condition that mattered to the answer. The judge's
+misreading is a separate problem with how the answer was assessed
+(Appendix~\ref{app:error-analysis}).
+
+\subsection{Targeted follow-up comparisons}
+\label{sec:follow-up}
+We test BM25 and rank fusion to look for evidence that dense retrieval misses.
+On some dev questions, BM25 finds labelled documents outside the dense top
+100. Dense retrieval retains the highest mean Recall@5.
+
+For shorter contexts, we verify that we can construct overlapping sentence
+windows from the same reranked documents. The pilot uses a shared token cap
+to compare passage selection with prefix truncation. The answer comparison
+remains open.
+
+With the evidence fixed, we test prompts that ask the generator to check
+whether a rule applies or to answer the parts supported by the evidence.
+Both raise some per-question scores, with mixed results across the sample.
+For example, the applicability prompt distinguishes short selling securities
+directly from buying an ETF that provides short exposure. The source text
+supports this distinction (Appendix~\ref{app:alternative-rag}).
 
 \section{Discussion and Conclusion}
 \label{sec:conclusion}
 
-Reranking from a shared pool improves early retrieval on both splits. With
-five documents and similar mean input length, Qwen-4B raises the practice
-answer score by 0.0445 under our judging protocol. The dev score interval leaves
-the downstream benefit uncertain. The extra 5.7--6.0~s of attributed per-query
-cost comes mainly from the reranker. This matters for interactive voice
-queries, where the user also waits for transcription, and for offline answering,
-where the acceptable delay may differ.
+Selecting better evidence within five documents improved the mean practice
+score at a similar prompt length. The gain came with an estimated 5.7--6.0~s
+per question across the changed stages, mostly in reranking. The estimate
+combines stage timings from cached-input runs. The separate ten-question
+audio probe stops at context construction, before generation. Qwen-0.6B
+reranks faster than 4B and improves recall over Dense5. Its answer benefit
+remains open.
 
-Dataset and measurement limits constrain this trade-off. We selected the
-checkpoint on practice and evaluated it on a previously inspected dev set.
-The paired intervals omit variability from rerunning generation or judging and
-from adaptive checkpoint selection. Qrels can miss supporting documents, and the
-judge sees reference text that can differ from the generator's evidence. We have
-retrieval measurements for Qwen-0.6B, leaving its effect on answers open. A
-separate ten-question probe timed the pipeline through context construction with
-generation disabled. The answer comparisons measured selection and generation
-from cached inputs, so the cost in Table~\ref{tab:qwen-answers} covers those
-stages of the audio-to-answer request.
+The additional lexical hits in Section~\ref{sec:follow-up} make the indexed
+text worth examining. \citet{meng2026ranking} recover more evidence with
+shorter BM25 index entries in their deep-research setting. At fixed retrieval
+budgets, \citet{lu2026hichunk} improve answer quality on evidence-dense tasks.
+For our questions, a shorter prompt would need to preserve conditions such
+as the timing in the crisis-assets case, and generation savings would need
+to cover passage scoring. \citet{jegede2026advisory} improve correctness in
+agricultural QA with worked examples while holding retrieval and the model
+fixed. An example that shows when a rule applies would extend the instructions
+we tested in the prompt pilot.
+
+The answer comparisons use the same judge and rubric throughout. The cases
+in Section~\ref{sec:failure-analysis} show that the judge can misread its
+references. We have evidence of those specific errors, and their effect on
+the mean score gain is unknown. On the previously inspected dev split the
+paired interval for the answer gain still includes zero. The intervals
+describe query variation with a fixed checkpoint and one generation and
+judgement per condition. Whether the observed benefit justifies the extra
+wait in a voice interface depends on its response-time target.
 
 % References are excluded from the main-body page limit.
 \bibliography{references}
@@ -552,8 +612,7 @@ an explanation that reverses candidate/reference content. Scores are not
 manually changed, and no population-wide judge error rate is inferred.
 Generation medians avoid API outlier distortion: the dev dense-budget maximum
 is 186{,}750~ms. Dev reranking's 262~ms is on GPU; the pilot's 26~s/query is on
-two CPU cores, not a matched speed comparison. BM25/RRF dev Recall@5 of
-0.208/0.303 is below dense's 0.379, without answer-quality evaluation.
+two CPU cores, not a matched speed comparison.
 
 \section{Exploratory reranker model control}
 \label{app:model-control}
@@ -668,6 +727,72 @@ these are not a common utility scale or measured audio-to-answer delay.
 Frozen inputs, code snapshots, new answers, judge caches/raw responses and
 the two offline audits are included with the run artifacts. No rerun is made
 to obtain an interval excluding zero.
+
+\section{Per-question recall and answer scores}
+\label{app:recall-score}
+We join the frozen ranking records and the fresh paired answer runs by query
+ID within each split. We check that the top five IDs in each ranking match the
+document IDs in its saved generation plan in the same order. Each row in the
+table groups questions by the direction of the Recall@5 change and counts the
+directions of the corresponding judge-score changes. We compare matched
+Qwen-4B with Dense5 throughout.
+
+\begin{center}
+\small
+\begin{tabular}{@{}llrrr@{}}
+\toprule
+Split & Recall@5 change & Higher score & Tied score & Lower score \\
+\midrule
+Practice & Higher & 34 & 37 & 11 \\
+& Tied & 77 & 111 & 58 \\
+& Lower & 4 & 7 & 11 \\
+\midrule
+Dev & Higher & 17 & 9 & 4 \\
+& Tied & 18 & 44 & 22 \\
+& Lower & 5 & 2 & 4 \\
+\bottomrule
+\end{tabular}
+\end{center}
+On practice, 53 questions move from a zero score to a positive score and 36
+move from a positive score to zero. The counts describe the observed paired
+runs. In particular, questions in the tied-recall row can have different
+text and document ordering in their two prompts.
+
+\section{Exploratory retrieval, passage and prompt comparisons}
+\label{app:alternative-rag}
+On the 125 dev questions, BM25 reaches Recall@5 of 0.2082 and reciprocal rank
+fusion of BM25 and dense rankings reaches 0.3025, compared with 0.3795 for
+dense search. BM25 finds a labelled document missing from the dense top 100
+for eight questions, so its lower mean recall coexists with some complementary
+coverage. We evaluated retrieval only for these alternatives.
+Details are in \path{rag/results/bm25-compare-dev/summary.json}.
+
+For passage selection, we implemented overlapping three-sentence windows
+within the same five Qwen-ranked documents. The pilot protocol compares full
+text with ranked-prefix packing and passage selection. \citet{lu2026hichunk}
+compare chunking methods at fixed retrieval budgets because changes in the
+budget can themselves affect answer quality. In our pilot, both compressed
+conditions draw from the same five documents and use a 768-token cap on the
+full prompt. This lets us compare ways of spending the same token allowance.
+The preflight verified 495 exact-text windows across 120 document instances
+for 24 practice questions.
+The pilot record verifies window construction. The answer-score comparison
+remains open. See \path{rag/experiments/passage-pilot-v1.md}.
+
+Two completed prompt pilots use the same 24 practice questions chosen by
+their original judge scores and evidence coverage. The five Qwen-ranked
+documents are fixed. One variant asks the model to check whether the source
+conditions apply and give a direct, cited answer. Its mean score is 0.2118
+against 0.2326 for its fresh baseline, with seven wins, ten ties and seven
+losses. The other adds a short instruction to answer the supported part of a
+question and name missing information. Its mean is 0.1806 against its fresh
+baseline of 0.1944, with six wins, thirteen ties and five losses. Each pilot
+uses one fresh generation and judgement per arm and question. These results
+characterize the diagnostic sample. The short-selling example is
+\texttt{q\_70395695d015396f} in the first pilot. The runner is
+\path{rag/extensions/run_system_prompt_pilot.py}, with local summaries in
+\path{rag/results/system-prompt-pilot-20261117-v1/comparison.json} and
+\path{rag/results/system-prompt-pilot-20261117-v2/comparison.json}.
 
 \section{Offline practice error analysis}
 \label{app:error-analysis}
