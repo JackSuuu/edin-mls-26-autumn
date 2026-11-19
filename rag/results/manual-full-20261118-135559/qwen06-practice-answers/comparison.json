@@ -1,0 +1,47 @@
+{
+  "rows": [
+    {
+      "method": "Dense5",
+      "queries": 350,
+      "recall5": 0.42133725005153577,
+      "answer_score": 0.3457142857142857,
+      "zeros": 136,
+      "cached_reranking_ms": 0.0,
+      "generation_ms": 4274.5568780601025,
+      "attributed_selection_plus_generation_ms": 4276.3543473396985
+    },
+    {
+      "method": "Qwen-0.6B",
+      "queries": 350,
+      "recall5": 0.4671127602556174,
+      "answer_score": 0.3373809523809524,
+      "zeros": 137,
+      "cached_reranking_ms": 1423.720463338707,
+      "generation_ms": 4203.793821127287,
+      "attributed_selection_plus_generation_ms": 5631.314484498331
+    },
+    {
+      "method": "Qwen-4B",
+      "queries": 350,
+      "recall5": 0.5262261389404247,
+      "answer_score": 0.3697619047619048,
+      "zeros": 126,
+      "cached_reranking_ms": 5602.515607263361,
+      "generation_ms": 4456.859278258468,
+      "attributed_selection_plus_generation_ms": 10061.146515767488
+    }
+  ],
+  "paired_delta_and_query_ci95": {
+    "Qwen-0.6B minus Dense5": [
+      -0.008333333333333333,
+      -0.042857142857142844,
+      0.025
+    ],
+    "Qwen-4B minus Qwen-0.6B": [
+      0.03238095238095238,
+      -0.0009523809523809509,
+      0.06761904761904755
+    ]
+  },
+  "note": "0.6B measured in a later ELM window; controls reused, timings attributed from stages."
+}
