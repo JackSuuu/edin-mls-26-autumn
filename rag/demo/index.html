@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Audio RAG · Live pipeline</title>
+<style>
+:root{color-scheme:dark;--bg:#09090b;--panel:#111113;--line:#29292d;--fg:#fafafa;--muted:#a1a1aa;--mono:ui-monospace,SFMono-Regular,Consolas,monospace;font:15px/1.55 system-ui,sans-serif}
+*{box-sizing:border-box}[hidden]{display:none!important}body{margin:0;background:var(--bg);color:var(--fg)}
+button{font:inherit;color:inherit;cursor:pointer;background:#18181b;border:1px solid var(--line);border-radius:7px;padding:.42rem .72rem}
+ button:hover{background:#29292d}button:focus-visible{outline:2px solid white;outline-offset:3px}
+ button:disabled{opacity:.45;cursor:default}
+.wrap{width:min(1180px,calc(100% - 48px));margin:auto}.top{border-bottom:1px solid var(--line);background:#09090bea}
+.top .wrap,.row{display:flex;align-items:center;justify-content:space-between;gap:.8rem}.top .wrap{min-height:62px}
+.brand{display:flex;align-items:center;gap:.65rem;font-weight:650}.glyph{display:grid;place-items:center;background:white;color:#09090b;width:28px;height:28px;border-radius:7px;font:700 13px var(--mono)}
+.label,.pill,.step-no,code,.metric{font-family:var(--mono)}.label,.step-no{font-size:.72rem;letter-spacing:.12em;color:var(--muted);text-transform:uppercase}
+.pill{display:inline-flex;align-items:center;gap:.45em;border:1px solid var(--line);border-radius:999px;padding:.25rem .65rem;color:var(--muted);font-size:.73rem}
+.dot{width:7px;height:7px;border-radius:50%;background:#595961}.pill[data-online=true] .dot{background:white;box-shadow:0 0 10px #ffffff88}
+.hero{border-bottom:1px solid var(--line);background:radial-gradient(ellipse at 78% 0%,#222226,transparent 62%),repeating-linear-gradient(90deg,transparent 0 31px,#ffffff09 32px),repeating-linear-gradient(0deg,transparent 0 31px,#ffffff09 32px)}
+.hero .wrap{padding:42px 0 36px}.hero h1{font-size:clamp(2.65rem,7vw,5.2rem);line-height:1.02;letter-spacing:-.075em;margin:.4rem 0 .75rem}.hero p{color:var(--muted);margin:0}
+main{padding:22px 0 44px}.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:1rem 1.15rem;min-width:0}
+.row{flex-wrap:wrap}h2{font-size:1rem;letter-spacing:-.015em;margin:0}p{margin:.6rem 0 0}small,.muted{color:var(--muted)}
+.steps,.grid{display:grid;gap:.65rem}.steps{grid-template-columns:repeat(5,minmax(0,1fr));margin:1rem 0 .75rem}.step{position:relative;background:#0c0c0e;border:1px solid var(--line);border-radius:8px;padding:.65rem .8rem;color:var(--muted);overflow:hidden;min-height:85px}
+.step small{display:block;font-size:.72rem;margin-top:.15rem}.step.active small{color:#52525b}.step.past .step-no{color:#d4d4d8}
+.step.optional{border-style:dashed}.step.skip{opacity:.65}
+.step strong{display:block;font-size:.89rem}.step.active{background:var(--fg);border-color:var(--fg);color:var(--bg)}.step.active .step-no{color:#52525b}.step.past{color:var(--fg);background:#18181b}
+.step.past::after{content:"✓";position:absolute;right:.55rem;top:.55rem;font:12px var(--mono)}
+#status{margin:0;min-height:1.55rem}progress{display:block;accent-color:white;width:100%;height:8px;margin-top:.8rem}
+.transcript{margin:12px 0}.transcript p{font-size:1.16rem;font-weight:550}.grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;align-items:start}
+#docs{list-style:none;margin:.7rem 0 0;padding:0;display:grid;gap:.5rem}.doc{border:1px solid var(--line);border-radius:8px;background:#0c0c0e;padding:.6rem .75rem;font-size:.86rem;overflow-wrap:anywhere}.doc p{margin:.35rem 0 0;color:#d4d4d8}.doc code{color:var(--muted);font-size:.75rem}
+#answer{white-space:pre-wrap;overflow-wrap:anywhere;color:#e4e4e7}.timing-card{margin-top:12px}.metric{font-size:1.7rem;letter-spacing:-.045em}dl{margin:.8rem 0;display:grid;grid-template-columns:1fr auto;gap:.35rem .8rem;font-size:.87rem}dt{color:var(--muted)}dd{margin:0;font:inherit;font-variant-numeric:tabular-nums}
+.bad{color:white;text-decoration:underline;text-underline-offset:4px}.working .step.active:not([data-stage=done])::after{content:"";position:absolute;bottom:0;left:0;width:34%;height:2px;background:#71717a;animation:sweep 1.6s ease infinite}
+.score-card{margin-top:12px}.score-card dl{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.5rem}.score-cell{padding:.55rem .65rem;background:#0c0c0e;border:1px solid var(--line);border-radius:8px}.score-cell dt{font-size:.72rem;overflow-wrap:anywhere}.score-cell dd{font:1rem var(--mono);margin-top:.25rem}#judge-note,#explanation{color:var(--muted);font-size:.86rem;white-space:pre-wrap;overflow-wrap:anywhere}
+.top{position:sticky;top:0;z-index:10;backdrop-filter:blur(12px)}.clockbox{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:.25rem .75rem}.clockbox .metric{min-width:5.5ch;text-align:right;line-height:1.15}.clockbox .label{letter-spacing:.045em}
+.trace{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:.55rem;margin-top:1rem}.trace-pane{border:1px solid var(--line);border-radius:8px;background:#0c0c0e;padding:.65rem .75rem;min-width:0}.trace-pane strong{display:block;font:1rem var(--mono);margin:.2rem 0;overflow-wrap:anywhere}
+ .rank-grid{display:grid;grid-template-columns:1fr 1fr;gap:.55rem;margin-top:.65rem}.rank-grid ol{margin:.25rem 0 0;padding:0;list-style:none}.rank-grid li{display:flex;align-items:center;gap:.4em;padding:.25rem 0;border-top:1px solid #242428;font-size:.8rem;overflow-wrap:anywhere}.rank-grid code{color:#e4e4e7}.rank-grid .pill{font-size:.64rem;margin-left:auto}
+ .results-link{display:inline-block;margin-top:.7rem;color:var(--fg);text-underline-offset:.2em}.results-link:focus-visible,.results-scroll:focus-visible{outline:2px solid white;outline-offset:3px}
+ .results-card{margin-top:12px;scroll-margin-top:8rem}.results-scroll{overflow-x:auto;margin-top:.65rem}.results-table{border-collapse:collapse;width:100%;min-width:31rem;font-size:.87rem;text-align:right;font-variant-numeric:tabular-nums}
+ .results-table caption{text-align:left;color:var(--muted);padding-bottom:.4rem}.results-table th,.results-table td{padding:.55rem .65rem;border-bottom:1px solid var(--line)}.results-table th:first-child{text-align:left;white-space:nowrap}.results-table thead th{color:var(--muted);font-weight:500}.results-table tbody td{font-family:var(--mono)}
+ .results-note{color:var(--muted);font-size:.87rem}.audio-result{margin-top:1rem;border-top:1px solid var(--line);padding-top:.8rem}.audio-result h3{font-size:.9rem;margin:0}
+ .results-nav{display:flex;flex-wrap:wrap;gap:0 1rem}.result-metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.55rem;margin:.85rem 0 0}.result-metrics dd{font:clamp(1.15rem,4vw,1.65rem) var(--mono);margin-top:.25rem}.evidence-quote{margin:.85rem 0 0;padding:.6rem .85rem;border-left:3px solid #71717a;background:#0c0c0e}.result-source{overflow-wrap:anywhere}.result-takeaway{margin-top:1rem;border-top:1px solid var(--line);padding-top:.8rem}
+@media(max-width:670px){.trace{grid-template-columns:repeat(2,minmax(0,1fr))}.rank-grid{grid-template-columns:1fr}.top .wrap{flex-wrap:wrap;padding:.4rem 0}.clockbox{gap:.2rem .45rem}}
+@keyframes sweep{from{transform:translateX(-100%)}to{transform:translateX(300%)}}
+@media(prefers-reduced-motion:reduce){*,*::after{animation:none!important}}
+@media(max-width:670px){.wrap{width:calc(100% - 24px)}.hero .wrap{padding:28px 0}.grid{grid-template-columns:1fr}.steps{grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:.3rem}.step{padding:.45rem .55rem;min-height:66px}.step.past::after{display:none}}
+</style>
+<body>
+<header class="top"><div class="wrap">
+  <div class="brand"><span class="glyph" aria-hidden="true">∿</span> Audio RAG <span class="label">/ Console</span></div>
+  <div class="clockbox">
+    <span class="pill" id="connection"><span class="dot" aria-hidden="true"></span><span id="connection-text">Connecting</span></span>
+     <span class="label" id="clock-label">Audio → answer</span><span class="metric" id="clock">—</span>
+     <button id="reset" type="button" disabled title="Clear this run from the dashboard without stopping it">Reset</button>
+  </div>
+</div></header>
+<section class="hero"><div class="wrap">
+  <span class="label">Machine Learning Systems / Demo</span>
+  <h1>From audio to answer.</h1>
+  <p>Transcribe a question, select evidence, then answer with EuroLLM.</p>
+  <nav class="results-nav" aria-label="Recorded experiment results">
+    <a class="results-link" href="#evaluation-results">Evaluation results ↓</a>
+    <a class="results-link" href="#chunking-results">Document chunking ↓</a>
+    <a class="results-link" href="#asr-results">ASR benchmark ↓</a>
+  </nav>
+</div></section>
+<main class="wrap">
+  <section class="card" id="pipeline">
+    <div class="row"><h2>Pipeline</h2><span class="pill" id="mode">Waiting for terminal</span></div>
+    <nav class="steps" aria-label="Pipeline stages">
+      <div class="step" data-stage="asr"><span class="step-no">01</span><strong>Transcribe</strong><small>Audio → text</small></div>
+      <div class="step" data-stage="retrieve"><span class="step-no">02</span><strong>Retrieve</strong><small id="candidate-label">Dense search · 100 candidates</small></div>
+      <div class="step" data-stage="rerank"><span class="step-no">03</span><strong>Select evidence</strong><small id="selector-label">Dense5 or Qwen‑4B</small></div>
+      <div class="step" data-stage="generate"><span class="step-no">04</span><strong>Answer</strong><small>5 full documents → EuroLLM</small></div>
+      <div class="step optional" data-stage="judge"><span class="step-no">05 · optional</span><strong>Evaluate</strong><small id="evaluate-label">EuroLLM + reference evidence</small></div>
+    </nav>
+    <p id="status" class="muted" role="status">Start a request with <code>rag/demo/run.py</code>.</p>
+    <progress id="progress" max="1" value="0" aria-label="Reranking progress" hidden></progress>
+    <div class="trace" aria-label="Pipeline data flow">
+      <div class="trace-pane"><span class="label">01 / ASR</span><strong id="trace-input">—</strong><small>Audio becomes the search query</small></div>
+      <div class="trace-pane"><span class="label">02 / Search</span><strong id="trace-candidates">—</strong><small>Dense candidate pool</small></div>
+      <div class="trace-pane"><span class="label">03 / Selection</span><strong id="trace-selection">—</strong><small id="trace-selection-note">Top documents sent in full</small></div>
+      <div class="trace-pane"><span class="label">04 / EuroLLM</span><strong id="trace-output">—</strong><small>Generator output, not the judge</small></div>
+    </div>
+    <div class="rank-grid" id="ranks" hidden>
+      <section class="trace-pane"><h2>Dense search · top 5</h2><ol id="before-rank"></ol></section>
+      <section class="trace-pane"><h2 id="after-title">Selected for EuroLLM</h2><ol id="after-rank"></ol></section>
+    </div>
+  </section>
+  <section class="card transcript"><div class="row"><h2>ASR transcript</h2><code id="source" class="muted"></code></div><p id="transcript">—</p></section>
+  <div class="grid">
+    <section class="card"><div class="row"><h2>Selected evidence</h2><span class="pill" id="count">0 documents</span></div>
+      <ul id="docs"></ul><small>Previews only. EuroLLM receives the full selected documents.</small>
+    </section>
+    <div>
+      <section class="card"><div class="row"><h2>EuroLLM answer</h2><button id="copy" type="button" hidden>Copy</button></div><p id="answer">—</p></section>
+      <section class="card score-card"><div class="row"><h2>EuroLLM judge</h2><span class="pill" id="judge-state">Not run</span></div>
+        <p id="judge-note">Add <code>--judge</code> for a course query. Evaluation happens after the answer is delivered.</p>
+        <dl id="scores" hidden></dl><p id="explanation" hidden></p>
+      </section>
+      <section class="card timing-card"><div class="row"><h2>Audio → answer</h2><span class="metric" id="total">—</span></div>
+        <dl id="timing"></dl><small>Model loading and evaluation are excluded from the answer time.</small>
+      </section>
+    </div>
+  </div>
+   <section class="card results-card" id="evaluation-results" aria-labelledby="results-title">
+     <div class="row"><h2 id="results-title">Evaluation results</h2><span class="pill">Offline results · not live timings</span></div>
+     <div class="results-scroll" role="region" aria-label="Practice comparison table" tabindex="0">
+       <table class="results-table">
+         <caption>Practice set · 350 queries</caption>
+         <thead><tr>
+           <th scope="col">Selector</th><th scope="col">Recall@5</th><th scope="col">Mean judge score</th>
+           <th scope="col">Selection + generation<br>(attributed)</th>
+         </tr></thead>
+         <tbody>
+           <tr><th scope="row">Dense5</th><td>0.421</td><td>0.346</td><td>4.28 s</td></tr>
+           <tr><th scope="row">Qwen-0.6B</th><td>0.467</td><td>0.337</td><td>5.63 s</td></tr>
+           <tr><th scope="row">Qwen-4B</th><td><strong>0.526</strong></td><td>0.370</td><td><strong>10.06 s</strong></td></tr>
+         </tbody>
+       </table>
+     </div>
+     <p class="results-note">Both Qwen selectors improved document recall, but 0.6B did not improve the mean judge score. Qwen-4B had the highest observed score; its paired interval versus Dense5 includes zero, so an answer-quality improvement is not confirmed.</p>
+     <div class="audio-result">
+       <h3>Separate end-to-end test · 10 audio queries</h3>
+       <p>Audio to complete answer: <strong>≈9 s</strong> with Dense5 vs <strong>≈17 s</strong> with Qwen-4B.</p>
+       <p class="results-note">Most of the extra time came from reranking. The evidence is clearer for higher recall and higher latency than for better answers.</p>
+     </div>
+    </section>
+    <section class="card results-card" id="chunking-results" aria-labelledby="chunking-title">
+      <div class="row"><h2 id="chunking-title">Document chunking: getting the key sentence</h2><span class="pill">Recorded offline experiment · not a live feature</span></div>
+      <p>What are the steps involved in purchasing a residential property?</p>
+      <dl class="result-metrics">
+        <div class="score-cell"><dt>Document rank</dt><dd>8</dd></div>
+        <div class="score-cell"><dt>Chunk-based rank</dt><dd>3</dd></div>
+      </dl>
+      <blockquote class="evidence-quote">Start building a down payment and emergency fund. Pay down consumer debt/student loans.</blockquote>
+      <p class="results-note result-source">Source <code>r_623105da59cf298f</code> · Query <code>q_d1397ae30111620c</code> · Record: <code>rag/experiments/DOCUMENT_CHUNKING_768.md</code></p>
+      <p class="results-note">Across 24 Practice questions with a 768-token input cap, chunking the same five documents did not improve the mean score when labelled evidence was already in the prompt. In the other group, ranking by chunks brought labelled text into the prompt for <strong>3 of 12</strong> questions.</p>
+      <p class="result-takeaway">Here, the chunk-ranked prompt included these lines, and the answer mentioned all three recommendations. That shows evidence recovery in this example, not a general answer-quality gain.</p>
+    </section>
+    <section class="card results-card" id="asr-results" aria-labelledby="asr-title">
+      <div class="row"><h2 id="asr-title">ASR: passing tests does not mean faster inference</h2><span class="pill">Recorded benchmark · one clip</span></div>
+      <p><strong>4/4 test suites passed.</strong> The four custom CUDA kernel groups reproduced the reference transcription.</p>
+      <dl class="result-metrics">
+        <div class="score-cell"><dt>PyTorch</dt><dd>521 ms</dd></div>
+        <div class="score-cell"><dt>All CUDA</dt><dd>1,986 ms</dd></div>
+      </dl>
+      <p class="results-note">On this clip, enabling all custom kernels took <strong>3.8× as long</strong> as PyTorch. Linear operations accounted for about <strong>84%</strong> of all-CUDA kernel time.</p>
+      <p class="result-takeaway"><strong>Takeaway:</strong> A better component metric does not guarantee a better system. Measure both the answer the user gets and the time it takes to get there.</p>
+    </section>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const stages = ['asr','retrieve','rerank','generate','judge','done'];
+ let rendered = '';
+ let visibleRun;
+ const resetKey = 'audio-rag-dismissed-run';
+ let dismissedRun = sessionStorage.getItem(resetKey);
+let clockState;
+let clockReceipt;
+let connected = false;
+function connection(online) {
+  connected = online;
+  $('connection').dataset.online = online;
+  $('connection-text').textContent = online ? 'Connected' : 'Reconnecting';
+}
+function paintClock() {
+  if (!clockState) return;
+  const s = clockState;
+  const complete = Number.isFinite(s.total_ms);
+  const running = s.mode === 'live' && !complete && !['done','error'].includes(s.stage) && Number.isFinite(s.elapsed_ms);
+  const active = running && connected && performance.now() - clockReceipt < 180000;
+  const ms = complete ? s.total_ms : Number.isFinite(s.elapsed_ms)
+    ? s.elapsed_ms + (active ? performance.now() - clockReceipt : 0) : null;
+  $('clock').textContent = ms === null ? '—' : `${(ms/1000).toFixed(1)} s`;
+  $('clock-label').textContent = complete ? (s.mode === 'replay' ? 'Recorded · audio → answer' : 'Audio → answer · final')
+    : active ? 'Audio → answer · live' : s.stage === 'error' ? 'Request stopped' : 'Audio → answer';
+}
+setInterval(paintClock,100);
+
+function showRank(el, ids, dense) {
+  el.replaceChildren(...ids.map((rid,i) => {
+    const li = document.createElement('li'), id = document.createElement('code');
+    id.textContent = `${i+1}. ${rid}`;
+    li.append(id);
+    if (dense) {
+      const tag = document.createElement('span'), previous = dense.indexOf(rid);
+      tag.className = 'pill';
+      tag.textContent = previous >= 0 ? `Dense #${previous+1}` : 'Outside dense top 5';
+      li.append(tag);
+    }
+    return li;
+  }));
+}
+ function render(s) {
+   const idle = s.stage === 'idle';
+   clockState = idle ? null : s;
+   clockReceipt = performance.now();
+   if (idle) {
+     $('clock').textContent = '—';
+     $('clock-label').textContent = 'Audio → answer';
+   } else paintClock();
+   $('mode').textContent = idle ? 'Waiting for terminal' : `${s.mode === 'replay' ? 'Recorded replay · no inference' : 'Live request'} / ${s.method === 'qwen' ? 'Qwen‑4B' : 'Dense5'}`;
+  $('status').textContent = s.message;
+  $('status').classList.toggle('bad', s.stage === 'error');
+   $('pipeline').classList.toggle('working', !['idle','done','error'].includes(s.stage));
+  $('transcript').textContent = s.transcript || '—';
+  $('source').textContent = s.source || '';
+  $('answer').textContent = s.answer || '—';
+  $('copy').hidden = !s.answer || !navigator.clipboard;
+  $('copy').textContent = 'Copy';
+  $('progress').hidden = !(s.stage === 'rerank' && Number.isFinite(s.progress));
+  $('progress').value = s.progress || 0;
+   $('candidate-label').textContent = idle ? 'Dense search · 100 candidates' : Number.isFinite(s.candidates) ? `Dense search · ${s.candidates} candidates` : 'Search the dense index';
+   $('selector-label').textContent = idle ? 'Dense5 or Qwen‑4B' : s.method === 'qwen' ? 'Qwen‑4B reranks → top 5' : 'Keep dense order → top 5';
+  const judgeStatus = s.judge_status || 'skipped';
+  const skipped = ['skipped','unavailable'].includes(judgeStatus);
+   $('evaluate-label').textContent = !idle && skipped ? 'Not run for this request' : 'EuroLLM + reference evidence';
+  document.querySelectorAll('.step').forEach(el => {
+    const optional = el.dataset.stage === 'judge';
+    const active = el.dataset.stage === s.stage;
+    el.classList.toggle('active', active);
+     el.classList.toggle('skip', !idle && optional && skipped);
+    el.classList.toggle('past', optional ? judgeStatus === 'scored' : stages.indexOf(el.dataset.stage) < stages.indexOf(s.stage));
+    if (active) el.setAttribute('aria-current', 'step'); else el.removeAttribute('aria-current');
+  });
+  const docs = s.documents || [];
+  $('trace-input').textContent = s.transcript ? `${s.transcript.trim().split(/\s+/).length} words` : s.stage === 'asr' ? 'Listening…' : '—';
+  $('trace-candidates').textContent = Number.isFinite(s.candidates) ? `${s.candidates} candidates` : '—';
+  $('trace-selection').textContent = docs.length ? `${docs.length} selected` : s.stage === 'rerank' && Number.isFinite(s.progress)
+    ? `${Math.round(s.progress * 100)} / ${s.candidates || 100} scored` : '—';
+   $('trace-selection-note').textContent = idle ? 'Top documents sent in full' : s.method === 'qwen' ? 'Qwen‑4B · score, sort, take five' : 'Dense5 · keep the original order';
+  $('trace-output').textContent = s.answer ? 'Answer ready' : s.stage === 'generate' ? 'Generating…' : '—';
+  const dense = s.dense_top5 || [];
+  $('ranks').hidden = !(dense.length || docs.length);
+  showRank($('before-rank'), dense);
+  $('before-rank').hidden = !dense.length;
+  $('before-rank').parentElement.hidden = !dense.length;
+  $('after-title').textContent = docs.length ? 'Selected for EuroLLM' : 'Selection in progress';
+  showRank($('after-rank'), docs.map(d => d.id), dense.length ? dense : null);
+  $('count').textContent = `${docs.length} documents`;
+  $('docs').replaceChildren(...docs.map((d,i) => {
+    const node = document.createElement('li'); node.className = 'doc';
+    const id = document.createElement('code'), excerpt = document.createElement('p');
+    id.textContent = `${String(i+1).padStart(2,'0')} / ${d.id}`;
+    excerpt.textContent = d.text;
+    node.append(id, excerpt);
+    return node;
+  }));
+  $('total').textContent = Number.isFinite(s.total_ms) ? `${(s.total_ms/1000).toFixed(2)} s` : '—';
+  const judgeLabels = {queued:'Queued',running:'Scoring…',scored:'Scored',failed:'Failed',unavailable:'Unavailable',skipped:'Not run'};
+  $('judge-state').textContent = judgeLabels[judgeStatus];
+  $('judge-note').textContent = {
+    queued:'The judge runs after the answer is returned.',
+    running:'Checking the answer against labelled reference evidence.',
+    scored:Number.isFinite(s.normalised_score) ? `Normalised score: ${s.normalised_score.toFixed(3)} / 1 · automatic evaluation, not an accuracy label.` : '',
+    failed:'The evaluator failed. No score was assigned.',
+    unavailable:'No evaluation is available for this request.',
+    skipped:'Add --judge for a live course query with labelled evidence.'
+  }[judgeStatus];
+  $('scores').hidden = judgeStatus !== 'scored';
+  $('scores').replaceChildren(...Object.entries(s.scores || {}).map(([name,value]) => {
+    const cell = document.createElement('div'), dt = document.createElement('dt'), dd = document.createElement('dd');
+    cell.className = 'score-cell';
+    dt.textContent = name[0].toUpperCase() + name.slice(1);
+    dd.textContent = `${value} / 4`;
+    cell.append(dt,dd);
+    return cell;
+  }));
+  $('explanation').textContent = s.explanation || '';
+  $('explanation').hidden = !s.explanation;
+  $('timing').replaceChildren();
+  for (const [key,label] of Object.entries({asr_ms:'ASR',retrieval_ms:'Encode + search',upstream_ms:'Upstream',rerank_ms:'Rerank',generation_ms:'Generate',judge_ms:'Evaluate (separate)',tokens:'Input tokens'})) {
+    if (!Number.isFinite(s[key])) continue;
+    const dt = document.createElement('dt'), dd = document.createElement('dd');
+    dt.textContent = label;
+    dd.textContent = key === 'tokens' ? s[key] : `${(s[key]/1000).toFixed(2)} s`;
+    $('timing').append(dt,dd);
+ }
+ $('reset').addEventListener('click', () => {
+   if (!visibleRun) return;
+   dismissedRun = visibleRun;
+   sessionStorage.setItem(resetKey, dismissedRun);
+   visibleRun = null;
+   rendered = '';
+   $('reset').disabled = true;
+   render({stage:'idle', message:'Dashboard cleared. Start another request from the terminal.'});
+ });
+}
+$('copy').addEventListener('click', async () => {
+  try { await navigator.clipboard.writeText($('answer').textContent); $('copy').textContent = 'Copied'; }
+  catch { $('copy').textContent = 'Copy unavailable'; }
+});
+async function tick() {
+  try {
+    const res = await fetch('/events', {cache:'no-store'});
+    if (!res.ok) throw Error('Request failed');
+    const events = await res.json();
+    connection(true);
+     if (!events.length) return;
+     const last = events[events.length - 1];
+     if (last.run === dismissedRun) return;
+    const current = events.filter(e => e.run === last.run);
+    const signature = `${last.run}:${current.length}`;
+    if (signature !== rendered) {
+       render(Object.assign({}, ...current));
+       rendered = signature;
+       visibleRun = last.run;
+       $('reset').disabled = false;
+    }
+  } catch {
+    connection(false);
+  } finally {
+    setTimeout(tick,350);
+  }
+}
+tick();
+</script>
+</body>
+</html>
