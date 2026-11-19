@@ -1,0 +1,3 @@
+f4683d59db607e7e497b0156a8f1733187c0b60ac7067feadb3ad09f3da979ba  /home/jacksu/edin-mls-26-autumn/rag/results/selection-rankings-practice-full/rankings.jsonl
+0b3eec883690a66e52fee4e1f9628a2014408d6a78290217fec2b04f40127e22  /home/jacksu/edin-mls-26-autumn/rag/results/bm25-compare-dev/dense_rankings.jsonl
+9b7982cde774cea800cf9eedada0dd5e81b94341f451d2e93a4ee97bb8fbdb22  /home/jacksu/edin-mls-26-autumn/rag/results/diagnostic-retrieval-3713758/rankings.jsonl

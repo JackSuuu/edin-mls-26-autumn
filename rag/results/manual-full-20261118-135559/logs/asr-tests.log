@@ -1,0 +1,59 @@
+GPU: NVIDIA RTX A6000 (sm_86), 84 SMs, peak memory bandwidth about 768 GB/s
+
+tiny (2 x 3 tokens, Hq=3, Hk=1)      PASS  max_err=1.08e-07     0.002 ms      0.7 GB/s ( 0% of peak)
+odd sizes, partial rotation          PASS  max_err=1.08e-07     0.002 ms      7.2 GB/s ( 1% of peak)
+audio encoder (partial, 32/64)       PASS  max_err=1.93e-07     0.025 ms    602.8 GB/s (78% of peak)
+text decoder (GQA 16/4, full)        PASS  max_err=1.64e-07     0.003 ms    455.6 GB/s (59% of peak)
+
+Task 1 (RoPE): ALL PASS
+GPU: NVIDIA RTX A6000 (sm_86), 84 SMs, peak memory bandwidth about 768 GB/s
+
+rmsnorm, one short row               PASS  max_err=8.27e-08     0.002 ms      0.1 GB/s ( 0% of peak)
+rmsnorm, odd cols                    PASS  max_err=3.68e-07     0.003 ms     12.4 GB/s ( 2% of peak)
+rmsnorm, text decoder                PASS  max_err=4.35e-07     0.005 ms    209.0 GB/s (27% of peak)
+layernorm, odd cols (example)        PASS  max_err=3.91e-07     0.004 ms     10.7 GB/s ( 1% of peak)
+layernorm, audio encoder             PASS  max_err=5.42e-07     0.027 ms    575.8 GB/s (75% of peak)
+softmax, one short row               PASS  max_err=1.11e-08     0.003 ms      0.0 GB/s ( 0% of peak)
+softmax, odd cols                    PASS  max_err=1.88e-09     0.004 ms      6.4 GB/s ( 1% of peak)
+softmax, large inputs (+-100)        PASS  max_err=1.89e-08     0.004 ms      3.8 GB/s ( 0% of peak)
+softmax, all negative (-200..-150)   PASS  max_err=1.69e-08     0.003 ms      1.6 GB/s ( 0% of peak)
+softmax, vocabulary row (59264)      PASS  max_err=8.13e-11     0.104 ms      4.6 GB/s ( 1% of peak)
+softmax, 64 x 4096                   PASS  max_err=9.37e-10     0.008 ms    273.1 GB/s (36% of peak)
+
+Task 2 (reductions): ALL PASS
+GPU: NVIDIA RTX A6000 (sm_86), 84 SMs, peak memory bandwidth about 768 GB/s
+
+tiny 3 x 5, K = 7                    PASS  max_err=9.76e-09     0.002 ms        0 GFLOP/s
+    for comparison: naive      0 GFLOP/s, cuBLAS      0 GFLOP/s (CPU reference)
+odd sizes 37 x 100, K = 33, bias     PASS  max_err=1.55e-07     0.003 ms       79 GFLOP/s
+    for comparison: naive     75 GFLOP/s, cuBLAS     48 GFLOP/s (CPU reference)
+odd sizes, bias + GELU               PASS  max_err=7.70e-07     0.006 ms      160 GFLOP/s
+    for comparison: naive    136 GFLOP/s, cuBLAS    133 GFLOP/s (CPU reference)
+decoder q_proj (64x2048x2048)        PASS  max_err=1.10e-05     0.234 ms     2299 GFLOP/s
+    for comparison: naive    461 GFLOP/s, cuBLAS  10180 GFLOP/s (cuBLAS reference)
+decoder gate_proj (64x6144x2048)     PASS  max_err=1.24e-05     0.592 ms     2720 GFLOP/s
+    for comparison: naive    509 GFLOP/s, cuBLAS  15904 GFLOP/s (cuBLAS reference)
+decoder down_proj (64x2048x6144)     PASS  max_err=3.53e-05     0.706 ms     2282 GFLOP/s
+    for comparison: naive    452 GFLOP/s, cuBLAS  12919 GFLOP/s (cuBLAS reference)
+lm_head, last token (1x59264x2048)   PASS  max_err=1.24e-05     1.354 ms      179 GFLOP/s
+    for comparison: naive    200 GFLOP/s, cuBLAS    353 GFLOP/s (cuBLAS reference)
+encoder q_proj (1500x1280x1280)      PASS  max_err=2.38e-07     1.611 ms     3052 GFLOP/s
+    for comparison: naive    539 GFLOP/s, cuBLAS  20579 GFLOP/s (cuBLAS reference)
+encoder fc1 + GELU (1500x5120x1280)  PASS  max_err=1.08e-05     6.775 ms     2902 GFLOP/s
+    for comparison: naive    546 GFLOP/s, cuBLAS  21690 GFLOP/s (cuBLAS reference)
+conv2 via im2col (1500x1280x3840)    PASS  max_err=7.16e-07     5.077 ms     2904 GFLOP/s
+    for comparison: naive    547 GFLOP/s, cuBLAS  20752 GFLOP/s (cuBLAS reference)
+
+Task 3 (tiled GEMM): ALL PASS
+GPU: NVIDIA RTX A6000 (sm_86), 84 SMs, peak memory bandwidth about 768 GB/s
+
+tiny, one tile (4 queries, 5 keys)   PASS  max_err=8.15e-08     0.006 ms        0 GFLOP/s
+several tiles, peaky scores          PASS  max_err=4.97e-07     0.019 ms       12 GFLOP/s
+GQA 4 heads / 2 kv heads             PASS  max_err=1.30e-07     0.009 ms       68 GFLOP/s
+causal, seq_q = seq_k                PASS  max_err=5.16e-07     0.034 ms       75 GFLOP/s
+causal, 5 new queries, 37 keys       PASS  max_err=1.78e-07     0.010 ms       18 GFLOP/s
+causal, one new query                PASS  max_err=3.39e-07     0.033 ms       18 GFLOP/s
+text decoder (GQA 16/4, causal)      PASS  max_err=5.21e-07     0.042 ms      399 GFLOP/s
+audio encoder (20 heads, 1500)       PASS  max_err=2.68e-07     8.638 ms     1334 GFLOP/s
+
+Task 4 (attention): ALL PASS

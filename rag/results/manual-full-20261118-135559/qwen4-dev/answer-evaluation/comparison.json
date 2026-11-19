@@ -1,0 +1,80 @@
+{
+  "queries": 125,
+  "split": "dev",
+  "completed": true,
+  "arms": {
+    "dense5": {
+      "mean_correctness": 1.448,
+      "mean_grounding": 1.392,
+      "mean_completeness": 1.24,
+      "mean_normalised_answer_score": 0.33999999999999997,
+      "mean_local_input_tokens": 1209.048,
+      "server_usage_coverage": 125,
+      "mean_server_input_tokens": 1209.048,
+      "mean_generation_ms": 4563.85925462842,
+      "median_generation_ms": 4794.84161734581,
+      "mean_attributed_selection_plus_generation_ms": 4565.445463180542
+    },
+    "qwen4_matched5": {
+      "mean_correctness": 1.544,
+      "mean_grounding": 1.576,
+      "mean_completeness": 1.368,
+      "mean_normalised_answer_score": 0.37400000000000005,
+      "mean_local_input_tokens": 1245.16,
+      "server_usage_coverage": 125,
+      "mean_server_input_tokens": 1245.16,
+      "mean_generation_ms": 4750.866742700338,
+      "median_generation_ms": 4994.7113413363695,
+      "mean_attributed_selection_plus_generation_ms": 10335.4102499336
+    }
+  },
+  "paired_qwen4_minus_dense": {
+    "correctness": {
+      "mean_delta": 0.096,
+      "query_bootstrap_95pct_interval": [
+        -0.144,
+        0.344
+      ],
+      "improved": 27,
+      "worse": 21,
+      "tied": 77
+    },
+    "grounding": {
+      "mean_delta": 0.184,
+      "query_bootstrap_95pct_interval": [
+        -0.08,
+        0.424
+      ],
+      "improved": 36,
+      "worse": 24,
+      "tied": 65
+    },
+    "completeness": {
+      "mean_delta": 0.128,
+      "query_bootstrap_95pct_interval": [
+        -0.104,
+        0.352
+      ],
+      "improved": 33,
+      "worse": 28,
+      "tied": 64
+    },
+    "normalised_answer_score": {
+      "mean_delta": 0.034,
+      "query_bootstrap_95pct_interval": [
+        -0.024666666666666667,
+        0.092
+      ],
+      "improved": 39,
+      "worse": 31,
+      "tied": 55
+    }
+  },
+  "limitations": [
+    "Previously inspected dev; frozen-config validation, not untouched holdout",
+    "One generation and one judge call per answer",
+    "Same model generates and judges; public qrel evidence is not exhaustive",
+    "Query bootstrap excludes generation/judge rerun uncertainty",
+    "Attributed rerank cost is not measured end-to-end latency"
+  ]
+}

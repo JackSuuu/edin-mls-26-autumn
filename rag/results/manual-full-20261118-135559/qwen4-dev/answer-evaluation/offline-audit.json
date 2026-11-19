@@ -1,0 +1,10 @@
+{
+  "passed": true,
+  "split": "dev",
+  "queries": 125,
+  "fresh_answers_each": 125,
+  "fresh_judgements_each": 125,
+  "frozen_prompts_candidates_caches_and_raw_scores_verified": true,
+  "paired_means_and_intervals_recomputed": true,
+  "qualification": "Previously inspected dev, not untouched independent holdout"
+}
