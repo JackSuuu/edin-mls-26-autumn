@@ -96,9 +96,9 @@ what evidence selection changes downstream.
 The choice of retriever determines which documents the system finds. Dense
 retrieval uses similarity between embeddings, while BM25 scores matches
 between query and document terms~\citep{robertson2009bm25}. A hybrid retriever
-can combine both rankings. Once the system has a list of candidates, it can
-limit the length of the prompt with a token budget or split documents into
-passages and send only the most relevant excerpts.
+can combine both rankings. After retrieval, a token budget limits the amount
+of text in the prompt. Document chunking lets the system fill that budget
+with relevant excerpts.
 
 One way to give the model more evidence is to pass it more of the search
 results. In our initial comparison, sending twenty documents instead of five
@@ -250,7 +250,7 @@ offline evaluation.
 
 \subsection{Cost of sending more documents}
 Dense5 misses every labelled document on 143 of 350 practice questions.
-For 51 of these questions, the first labelled document ranks 6--20, so
+For 51 of these questions (36\%), the first labelled document ranks 6--20, so
 Dense20 gives the generator its first labelled document. Another 50
 have their first hit at ranks 21--100, and 42 have no hit in the top 100.
 We use rank 100 to measure candidate coverage. The uncapped generation
@@ -259,8 +259,10 @@ comparison uses five or twenty full documents in dense order.
 \begin{figure}[t]
 \centering
 \includegraphics[width=\linewidth]{figures/dense-context-cost.pdf}
-\caption{Mean input tokens and mean normalised judge scores for two measured
-context sizes on each split. Lines connect Dense5 and Dense20 within a split.}
+\caption{All panels use the same 350 practice queries. The left panel shows
+the first labelled rank. The $>100$ group has no labelled hit in the top 100.
+The other panels compare mean generator input and normalised judge score for
+Dense5 and Dense20.}
 \label{fig:dense-context-cost}
 \end{figure}
 
@@ -330,26 +332,6 @@ frozen selector again improves Recall@5 ($+0.0773$, $[0.0200,0.1339]$).
 The answer-score gain of 0.0567 has an interval that includes zero
 ($[-0.0007,0.1127]$).
 
-\begin{table}[t]
-\centering\small
-\setlength{\tabcolsep}{4pt}
-\caption{Fresh paired answer runs. R5 is Recall@5. Score and input tokens are
-means. Rerank and Gen.\ are mean stage seconds per query. Total adds reranking,
-context building, and generation using stage records from separate runs.}
-\label{tab:qwen-answers}
-\begin{tabular}{@{}llrrrrrr@{}}
-\toprule
-Split & Selector & R5 & Score & Tokens & Rerank & Gen. & Total \\
-\midrule
-Practice & Dense5 & .4213 & .3374 & 1290 & .000 & 4.755 & 4.757 \\
-& Qwen-4B & .5262 & .3819 & 1267 & 5.743 & 5.034 & 10.779 \\
-\midrule
-Dev & Dense5 & .3795 & .3133 & 1209 & .000 & 4.571 & 4.573 \\
-& Qwen-4B & .4568 & .3700 & 1245 & 5.621 & 4.641 & 10.263 \\
-\bottomrule
-\end{tabular}
-\end{table}
-
 \citet{louis2026oscar} count both compression and generation FLOPs when
 evaluating the cost of shortening a prompt. Our stage timings apply the same
 principle to reranking. At similar prompt lengths, the attributed cost still
@@ -359,10 +341,21 @@ on practice. API time can also vary with the generated output and service load.
 In a separate ten-query probe, ASR takes 2.622~s of the 2.646~s mean
 audio-to-context time, with roughly 24~ms for encoding and retrieval.
 ASR therefore dominates this path before generation. The reranking and
-generation times above come from runs with cached transcripts. Comparing
-these stages identifies where each configuration spends time. Measuring the
-total audio-to-answer latency requires running the same audio requests
-through generation.
+generation times above come from runs with cached transcripts.
+At a 16~s deadline, the mean score is 0.305 for Qwen-4B and 0.337 for both
+Dense5 and Qwen-0.6B. At 17~s, Qwen-4B reaches 0.344 and leads both
+(Figure~\ref{fig:answer-score-latency}).
+
+\begin{figure}[t]
+\centering
+\includegraphics[width=0.76\linewidth]{figures/answer-score-latency.pdf}
+\caption{Mean judge score within each deadline on 350 practice queries.
+We estimate audio-to-answer latency by adding the mean audio-to-context
+time of 2.646~s to each query's selection and generation times.
+We assign zero to queries that miss the deadline. We ran Qwen-0.6B in a later
+ELM window.}
+\label{fig:answer-score-latency}
+\end{figure}
 
 \subsection{Where recall and answer scores diverge}
 \label{sec:failure-analysis}
@@ -410,10 +403,12 @@ On 125 dev questions, BM25 finds labelled documents outside the dense top
 searches, including the BM25 stage, which takes 57.9~ms on average on CPU.
 The tested fusion therefore adds work while lowering mean top-five coverage.
 
-In the passage pilot preflight, we construct 495 overlapping windows from
-the reranked documents for 24 questions. We set a shared 768-token cap for
-passage selection and prefix truncation. The answer scores and the net timing
-effect of passage scoring and generation remain unmeasured.
+We explored document chunking to fit relevant excerpts from the five
+Qwen-ranked documents into a shorter prompt. We split each document into
+overlapping three-sentence chunks and designed a comparison between chunks
+ranked by relevance and document prefixes under the same 768-token input cap.
+We checked the chunks against the source text on 24 questions. The effect on
+answer quality and latency remains open (Appendix~\ref{app:alternative-rag}).
 
 With the evidence fixed, the applicability and partial-answer prompts raise
 scores on seven and six of 24 questions, respectively. On the short-selling
@@ -430,17 +425,19 @@ measurements favour the original prompt in these pilots
 The follow-up comparisons identify where the alternatives may help.
 \citet{meng2026ranking} recover more evidence with shorter BM25 index entries
 in deep research, making the indexed text a variable to test alongside lexical
-coverage. At equal retrieval budgets, \citet{lu2026hichunk} improve answer
-quality on evidence-dense tasks. In our case, a shorter prompt would need to
-preserve conditions such as the timing in the crisis-assets question, and
-generation savings would need to cover passage scoring. The gains from worked
-examples in agricultural QA reported by \citet{jegede2026advisory} motivate
+coverage. \citet{lu2026hichunk} compare document chunking methods at a fixed
+context budget and find gains on evidence-dense questions. In our setting,
+the chunks would need to preserve conditions such as the timing in the
+crisis-assets question, and generation savings would need to offset chunk
+scoring. The gains from worked examples in agricultural QA reported by
+\citet{jegede2026advisory} motivate
 testing an example of when a rule applies alongside our instructions.
 
 The paired answer intervals describe query variation with a fixed checkpoint
 and one generation and judgement per condition. The effect of the judge's
 misreadings on the mean gain remains unknown. Qwen-0.6B improves recall over
-Dense5 and reranks faster than 4B. Its effect on answer scores remains open.
+Dense5 and reranks faster than 4B. Its eventual mean score matches Dense5
+in the deadline comparison.
 
 We use a fixed transcript to separate the two optimisation decisions. For
 ASR, the Task~1 preset is fastest on the reference clip, and the all-CUDA
@@ -754,6 +751,26 @@ completeness $0.1743$ $[0.0429,0.3086]$. Mean generation times are
 these means alongside the mean reranking and attributed total times. ASR and
 initial retrieval were cached for answer generation.
 
+\begin{table}[ht]
+\centering\small
+\setlength{\tabcolsep}{4pt}
+\caption{Fresh paired answer runs. R5 is Recall@5. Score and input tokens are
+means. Rerank and Gen.\ are mean stage seconds per query. Total adds reranking,
+context building, and generation using stage records from separate runs.}
+\label{tab:qwen-answers}
+\begin{tabular}{@{}llrrrrrr@{}}
+\toprule
+Split & Selector & R5 & Score & Tokens & Rerank & Gen. & Total \\
+\midrule
+Practice & Dense5 & .4213 & .3374 & 1290 & .000 & 4.755 & 4.757 \\
+& Qwen-4B & .5262 & .3819 & 1267 & 5.743 & 5.034 & 10.779 \\
+\midrule
+Dev & Dense5 & .3795 & .3133 & 1209 & .000 & 4.571 & 4.573 \\
+& Qwen-4B & .4568 & .3700 & 1245 & 5.621 & 4.641 & 10.263 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \section{Frozen Qwen dev verification}
 \label{app:qwen-dev}
 After practice model selection, one authorized run uses all 125 previously
@@ -823,7 +840,7 @@ move from a positive score to zero. The counts describe the observed paired
 runs. In particular, questions in the tied-recall row can have different
 text and document ordering in their two prompts.
 
-\section{Exploratory retrieval, passage and prompt comparisons}
+\section{Exploratory retrieval, document chunking and prompt comparisons}
 \label{app:alternative-rag}
 On the 125 dev questions, BM25 reaches Recall@5 of 0.2082 and reciprocal rank
 fusion of BM25 and dense rankings reaches 0.3025, compared with 0.3795 for
@@ -832,17 +849,16 @@ for eight questions, so its lower mean recall coexists with some complementary
 coverage. We evaluated retrieval only for these alternatives.
 Details are in \path{rag/results/bm25-compare-dev/summary.json}.
 
-For passage selection, we implemented overlapping three-sentence windows
-within the same five Qwen-ranked documents. The pilot protocol compares full
-text with ranked-prefix packing and passage selection. \citet{lu2026hichunk}
-compare chunking methods at fixed retrieval budgets because changes in the
-budget can themselves affect answer quality. In our pilot, both compressed
-conditions draw from the same five documents and use a 768-token cap on the
-full prompt. This lets us compare ways of spending the same token allowance.
-The preflight verified 495 exact-text windows across 120 document instances
-for 24 practice questions.
-The pilot record verifies window construction. The answer-score comparison
-remains open. See \path{rag/experiments/passage-pilot-v1.md}.
+\citet{chirkova2025provence} use the question to identify which sentences from
+retrieved text to include in the prompt. Our document chunking method applies
+this idea to three-sentence windows with one sentence of overlap. Qwen-4B
+scores each chunk against the question, and overlapping excerpts chosen for
+the prompt are merged. The pilot uses the same five Qwen-ranked documents
+for full text, truncation in document rank order, and document chunking.
+Truncation and chunking share a 768-token cap on the full prompt. Across 24
+practice questions, we verified that all 495 chunks from 120 document instances
+were exact excerpts. Answer scores and net latency remain unmeasured. See
+\path{rag/experiments/passage-pilot-v1.md}.
 
 Two completed prompt pilots use the same 24 practice questions chosen by
 their original judge scores and evidence coverage. The five Qwen-ranked
@@ -878,8 +894,8 @@ characterize the diagnostic sample. The short-selling example is
 \section*{AI declaration}
 We used ChatGPT for CUDA/RAG implementation, experiment execution, offline
 audits, figures, and report drafting and revision.
-We used Codex to lay out Figures~\ref{fig:architecture} and
-\ref{fig:reranker-ranking-curves} in draw.io.
+We used Codex to lay out Figures~\ref{fig:architecture},
+\ref{fig:reranker-ranking-curves}, and \ref{fig:answer-score-latency} in draw.io.
 EuroLLM via ELM generated answers and automated judgements as described in the
 methodology.
 The authors confirmed the representative diagnostic cases and remain responsible
