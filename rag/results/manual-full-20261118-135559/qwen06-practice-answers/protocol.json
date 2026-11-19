@@ -1,0 +1,13 @@
+{
+  "model": "utter-project/EuroLLM-22B-Instruct-2512",
+  "rank_hash": "ec6426649b1b55649fa107a63f3f76e90c38ae2d26fd343f74d3636a5c4822f3",
+  "endpoint": "https://elm.edina.ac.uk/api/v1/",
+  "controls": "/home/jacksu/edin-mls-26-autumn/rag/results/manual-full-20261118-135559/qwen4-practice-answers",
+  "arm": "qwen06_matched5",
+  "split": "practice",
+  "n": 350,
+  "temperature": 0.1,
+  "judge_json": true,
+  "repeats": 1,
+  "script_sha256": "3b790d8392011eec0bd41405d9ec8c798188e174ff309753db9c033630129ad4"
+}
