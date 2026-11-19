@@ -1,0 +1,107 @@
+{
+  "strata": {
+    "present": {
+      "n": 12,
+      "arms": {
+        "A_document": {
+          "parent_hit": 12,
+          "prompt_hit": 12,
+          "mean_score": 0.625,
+          "mean_input_tokens": 734.75,
+          "mean_generation_ms": 3566.147039333979,
+          "mean_document_scoring_ms": 1287.8903769887984,
+          "mean_passage_scoring_ms": null
+        },
+        "B_fixed5_chunks": {
+          "parent_hit": 12,
+          "prompt_hit": 12,
+          "mean_score": 0.5902777777777778,
+          "mean_input_tokens": 727.9166666666666,
+          "mean_generation_ms": 3989.1869532875717,
+          "mean_document_scoring_ms": 1287.8903769887984,
+          "mean_passage_scoring_ms": 441.0882885567844
+        },
+        "C_rerank20_chunks": {
+          "parent_hit": 12,
+          "prompt_hit": 12,
+          "mean_score": 0.4930555555555556,
+          "mean_input_tokens": 755.8333333333334,
+          "mean_generation_ms": 3799.134145490825,
+          "mean_document_scoring_ms": 0,
+          "mean_passage_scoring_ms": 1758.227213130643
+        }
+      },
+      "primary": "B_fixed5_chunks minus A_document",
+      "deltas": {
+        "q_7cafeb3b3a6a690a": -0.08333333333333331,
+        "q_63b443228bb51742": 0.0,
+        "q_8706e2925ba6d565": -0.5,
+        "q_65e52727cacd73bb": -0.5,
+        "q_827198cb1c66eda1": 0.0,
+        "q_0d212ca33fe7fe0c": 0.0,
+        "q_695b5d5f009b1f69": -0.08333333333333331,
+        "q_03d88d0c11bdacb8": 0.41666666666666663,
+        "q_622e19d609fee5ed": 0.0,
+        "q_f504acc625fc515d": 0.4166666666666667,
+        "q_a24a9a7b2fc06285": -0.08333333333333337,
+        "q_0b007d68bef85089": 0.0
+      },
+      "mean_delta": -0.034722222222222224,
+      "wins": 2,
+      "losses": 5,
+      "ties": 5
+    },
+    "outside5": {
+      "n": 12,
+      "arms": {
+        "A_document": {
+          "parent_hit": 0,
+          "prompt_hit": 0,
+          "mean_score": 0.13194444444444445,
+          "mean_input_tokens": 754.75,
+          "mean_generation_ms": 4253.212567418814,
+          "mean_document_scoring_ms": 1362.0256873158116,
+          "mean_passage_scoring_ms": null
+        },
+        "B_fixed5_chunks": {
+          "parent_hit": 0,
+          "prompt_hit": 0,
+          "mean_score": 0.18055555555555555,
+          "mean_input_tokens": 741.75,
+          "mean_generation_ms": 4921.673604908089,
+          "mean_document_scoring_ms": 1362.0256873158116,
+          "mean_passage_scoring_ms": 572.7823474444449
+        },
+        "C_rerank20_chunks": {
+          "parent_hit": 3,
+          "prompt_hit": 3,
+          "mean_score": 0.2777777777777778,
+          "mean_input_tokens": 742.6666666666666,
+          "mean_generation_ms": 4221.112106616299,
+          "mean_document_scoring_ms": 0,
+          "mean_passage_scoring_ms": 2059.6825862303376
+        }
+      },
+      "primary": "C_rerank20_chunks minus B_fixed5_chunks",
+      "deltas": {
+        "q_41dfb7010d4be191": 0.3333333333333333,
+        "q_d40345916def841c": 0.0,
+        "q_60172faac220e3ba": 0.0,
+        "q_127367f6b97a8759": -0.16666666666666669,
+        "q_4f8d4c0ade334c67": 0.0,
+        "q_ea0be00eda6ea088": 0.4166666666666667,
+        "q_cef689c374316c83": 0.0,
+        "q_3bd06eaf675d1a65": 0.0,
+        "q_d1397ae30111620c": 0.16666666666666669,
+        "q_f7b2f82b48342282": 0.4166666666666667,
+        "q_9bba2ad2f9e2bf34": 0.0,
+        "q_bc1c349d33c5f4b0": 0.0
+      },
+      "mean_delta": 0.09722222222222222,
+      "wins": 4,
+      "losses": 1,
+      "ties": 7
+    }
+  },
+  "limits": "Prompt hit is labelled-source text presence, not a verified answer-bearing span; single generation/judge per arm."
+}

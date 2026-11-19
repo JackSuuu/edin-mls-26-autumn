@@ -1,0 +1,7 @@
+{
+  "config_sha256": "4e269f7d4630b5100f1ee07e01ac89b09514bbeab908b43bc88135250656b4b0",
+  "plans_sha256": "cd5bc6bb6465480241c5db23fd5f4829bb49641c6b60b96725f84b1f49e20d48",
+  "model": "utter-project/EuroLLM-22B-Instruct-2512",
+  "endpoint": "https://elm.edina.ac.uk/api/v1/",
+  "temperature": 0.1
+}
