@@ -113,10 +113,10 @@ assess a document's value by measuring how removing it affects the generator.
 We therefore evaluate the answers produced by our five-document selections.
 
 {\fontfamily{lmr}\fontseries{bx}\selectfont Research Question.}
-With the ASR transcripts and generator fixed,
-can reranking the same top 100 candidates turn higher recall into better
-answers at similar input lengths? How much extra time does this add across
-evidence selection and answer generation?
+We study the trade-off between answer quality, response latency and
+generator input token count in audio RAG. With ASR transcripts and generation
+settings fixed, we compare context expansion and reranking a fixed pool of
+100 candidates to test whether gains in document recall yield better answers.
 
 \section{System and Technical Approach}
 \label{sec:approach}
@@ -167,10 +167,7 @@ evidence selection downstream.
 \begin{figure}[t]
 \centering
 \includegraphics[width=\linewidth]{figures/audio-rag-architecture.pdf}
-\caption{Audio RAG pipeline and controlled reranking comparison. Both arms share
-a saved transcript and the dense top 100. Qwen scores matched document prefixes.
-EuroLLM receives five full records per arm. The cards show original dense
-ranks for one practice query.}
+\caption{Audio RAG pipeline and controlled reranking.}
 \label{fig:architecture}
 \end{figure}
 
@@ -236,10 +233,8 @@ sending the first 20 full records improves answers.
 \begin{figure}[t]
 \centering
 \includegraphics[width=\linewidth]{figures/dense-context-cost.pdf}
-\caption{All panels use the same 350 practice queries. The left panel shows
-the first labelled rank. The $>100$ group has no labelled hit in the top 100.
-The other panels compare mean generator input and normalised judge score for
-Dense5 and Dense20.}
+\caption{First labelled rank, input tokens and judge score on 350 practice
+queries. The $>100$ bin has no hit in the top 100.}
 \label{fig:dense-context-cost}
 \end{figure}
 
@@ -259,10 +254,8 @@ Deepening the MiniLM-L6 pool from 20 to 100 lowers Recall@5 from 0.411 to
 \begin{figure}[t]
 \centering
 \includegraphics[width=\linewidth]{figures/reranker-ranking-curves.pdf}
-\caption{Mean retrieval metrics at ranks $k=1,5,10,20,40,60,80,100$ over 350
-practice queries. All configurations rank the same 100 candidates per query.
-Matched Qwen variants see the source prefix visible to MiniLM. Open Qwen
-markers show the native 2,048-token setting. Recall@100 has a shared marker.}
+\caption{Retrieval metrics on 350 practice queries with a shared top-100 pool.
+Open Qwen markers denote the native 2,048-token limit.}
 \label{fig:reranker-ranking-curves}
 \end{figure}
 
@@ -298,21 +291,30 @@ ASR therefore dominates this path before generation. The reranking and
 generation times above come from runs with cached transcripts.
 
 Figure~\ref{fig:answer-score-latency} compares answer quality under assumed
-response deadlines. We estimate audio-to-answer time by adding stage timings
-from separate single-request runs. At each deadline, we average scores over
-all queries and assign zero to any answer estimated to arrive late. With a 16~s budget,
-the mean score for Qwen-4B is 0.305, below 0.337 for Dense5 and Qwen-0.6B.
-With a 17~s budget, more Qwen-4B answers count and its score rises to 0.344,
-above both alternatives. The Qwen-0.6B answers were generated in a later ELM
-service window, so differences in service load may affect the latency comparison.
+response deadlines. Estimated audio-to-answer time adds the mean
+audio-to-context time of 2.646~s to each query's selection and generation times.
+At 16~s, Qwen-4B scores 0.305, below 0.337 for Dense5 and Qwen-0.6B. At 17~s,
+Qwen-4B rises to 0.344, above both alternatives. The Qwen-0.6B answers were
+generated in a later ELM service window, so differences in service load may
+affect the latency comparison.
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.76\linewidth]{figures/answer-score-latency.pdf}
-\caption{Illustrative deadline-constrained answer quality on 350 practice
-queries. Estimated latency adds a shared mean audio-to-context time of 2.646~s
-to each query's selection and generation times. The mean score includes all
-queries, with zero credit for estimated late answers.}
+% Crop the embedded axis title and align its LaTeX replacement with the plot.
+\includegraphics[width=0.76\linewidth,trim=0 29bp 0 0,clip]{figures/answer-score-latency.pdf}%
+% Use percentages of the figure width to align the guide with the 17 s tick.
+\llap{%
+  \setlength{\unitlength}{0.0076\linewidth}%
+  \begin{picture}(100,0)
+    \color[gray]{0.55}\linethickness{0.55pt}%
+    \multiput(80.53,5.72)(0,1.335){22}{\line(0,1){0.78}}%
+  \end{picture}%
+}\\[2pt]
+\makebox[0.76\linewidth]{\hspace{0.08\linewidth}\small\fontfamily{lmss}\selectfont
+  Estimated end-to-end latency (s)}
+\caption{Mean answer score by estimated response deadline on 350 practice
+queries, with late answers scored as zero. The dashed line marks Qwen-4B's
+first plotted lead.}
 \label{fig:answer-score-latency}
 \end{figure}
 
@@ -350,10 +352,9 @@ answers, with lower mean scores and longer generation times overall.
 \begin{figure}[!htbp]
 \centering
 \includegraphics[width=0.93\linewidth]{figures/targeted-follow-up.pdf}
-\caption{Targeted follow-up comparisons. (a) Recall@5 on 125 dev queries.
-(b) Paired mean score differences with 95\% query-bootstrap intervals on 12
-practice queries per row and a 768-token input cap. (c) Score-change counts
-against each prompt's baseline on 24 practice queries with fixed evidence.}
+\caption{Follow-ups on (a) retrieval (125 dev queries), (b) chunking (12 practice
+queries per row, 95\% paired bootstrap intervals) and (c) prompts (24 practice
+queries).}
 \label{fig:targeted-follow-up}
 \end{figure}
 
