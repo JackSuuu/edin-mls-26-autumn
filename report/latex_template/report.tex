@@ -293,35 +293,31 @@ selection stage. Switching to L12 recovers 0.0225 Recall@5 relative to L6
 (95\% interval $[0.0022,0.0427]$), with an uncertain difference against Dense5
 (Appendix~\ref{app:model-control}).
 
-\begin{table}[t]
-\centering\small
-\caption{Reranking the same frozen top-100 pool on 350 practice queries.
-Matched Qwen variants see the source prefix visible to MiniLM. Time is median
-reranking latency on A6000 at batch size 8.}
-\label{tab:qwen-retrieval}
-\begin{tabular}{@{}lrrrr@{}}
-\toprule
-Selector & Recall@5 & MRR@10 & NDCG@10 & Rerank (s) \\
-\midrule
-Dense & .4213 & .4887 & .4205 & --- \\
-MiniLM L6 & .3877 & .4535 & .3952 & .333 \\
-Qwen-0.6B matched & .4671 & .4985 & .4544 & 1.630 \\
-Qwen-4B matched & .5262 & .5956 & .5341 & 5.823 \\
-Qwen-4B native-2048 & .5306 & .5995 & .5398 & 7.328 \\
-\bottomrule
-\end{tabular}
-\end{table}
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{figures/reranker-ranking-curves.pdf}
+\caption{Mean retrieval metrics at ranks $k=1,5,10,20,40,60,80,100$ over 350
+practice queries. All configurations rank the same 100 candidates per query.
+Matched Qwen variants see the source prefix visible to MiniLM. Open Qwen
+markers show the native 2,048-token setting. Recall@100 has a shared marker.}
+\label{fig:reranker-ranking-curves}
+\end{figure}
 
-With the same top 100 candidates for each selector and source visibility
-matched to MiniLM, both Qwen checkpoints improve Recall@5 over Dense5
-(Table~\ref{tab:qwen-retrieval}). Matched Qwen-4B gains 0.1049 over Dense5
-($[0.0726,0.1378]$). Allowing 4B to read beyond the matched prefix adds
-1.505~s to median reranking time for an estimated recall gain of 0.0043
-($[-0.0036,0.0137]$). Most of the observed recall gain is already present when
-the rankers see the same source text. Checkpoint differences also include
-training, architecture and tokenization, leaving the effect of parameter
-count unresolved. We compare matched Qwen-4B and Dense5 on fresh paired
-answers to test whether the recall gain carries through to generation.
+At the five-document cutoff used for generation, Recall@5 rises from 42.1\%
+with Dense5 to 46.7\% with matched Qwen-0.6B and 52.6\% with matched Qwen-4B
+(Figure~\ref{fig:reranker-ranking-curves}). The 4B gain over Dense5 is
+10.49 percentage points (95\% paired interval $[7.26,13.78]$). At rank
+10, nDCG rises from 0.420 to 0.534 and MRR from 0.489 to 0.596. The
+relevant documents rank higher overall, and the first relevant document
+tends to appear earlier. At rank 100, recall converges at 77.0\% because
+all selectors work from the same candidate pool.
+
+Matched Qwen-0.6B and Qwen-4B take 1.44 and 5.68~s to rerank a query at the
+median. Raising the 4B input limit increases the median to 7.17~s and adds
+an estimated 0.43 percentage points to Recall@5 ($[-0.36,1.37]$).
+Differences in training, architecture and tokenization leave the effect of
+parameter count unresolved. We compare fresh paired answers to test whether
+the 4B retrieval gain carries through to generation.
 
 \subsection{Answer gains and their latency cost}
 On practice, matched Qwen-4B raises the mean judge score from 0.3374 to 0.3819,
@@ -568,6 +564,14 @@ Selection and summary implementation:
 \path{rag/results/qwen4-retrieval-3724174/full/summary.json},
 \path{rag/results/qwen4-retrieval-3724174/paired-size-comparison.json},
 \path{rag/results/qwen4-answers-3724290/comparison.json}.
+Figure~\ref{fig:reranker-ranking-curves} uses the saved practice rankings in
+\path{rag/results/qwen06-retrieval-3724137/full/rankings.jsonl} and
+\path{rag/results/qwen4-retrieval-3724174/full/rankings.jsonl} with the frozen
+practice qrels and the metrics in \path{rag/src/metrics.py}.
+The editable source is \path{report/latex_template/figures/reranker-ranking-curves.drawio}.
+Median reranking times come from the full rerun summaries
+\path{rag/results/manual-full-20261118-135559/qwen06-practice/summary.json} and
+\path{rag/results/manual-full-20261118-135559/qwen4-practice/summary.json}.
 Frozen model/input/scoring settings:
 \path{rag/results/qwen4-retrieval-3724174/full/config.json} and
 \path{rag/results/qwen4-answers-3724290/config.json}.
@@ -874,7 +878,8 @@ characterize the diagnostic sample. The short-selling example is
 \section*{AI declaration}
 We used ChatGPT for CUDA/RAG implementation, experiment execution, offline
 audits, figures, and report drafting and revision.
-We used Codex to lay out Figure~\ref{fig:architecture} in draw.io.
+We used Codex to lay out Figures~\ref{fig:architecture} and
+\ref{fig:reranker-ranking-curves} in draw.io.
 EuroLLM via ELM generated answers and automated judgements as described in the
 methodology.
 The authors confirmed the representative diagnostic cases and remain responsible
