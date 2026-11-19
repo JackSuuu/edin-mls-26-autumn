@@ -91,8 +91,7 @@ generation (RAG) pipeline~\citep{lewis2020rag}. A language model uses the
 retrieved documents to answer the question. Finding and processing those
 documents contributes to the time the user waits for an answer. We benchmark
 CUDA replacements for the ASR operators, then fix the transcript to measure
-what evidence selection changes downstream. Appendix~\ref{app:asr-answers}
-answers one question from each of the four ASR tasks.
+what evidence selection changes downstream.
 
 The choice of retriever determines which documents the system finds. Dense
 retrieval uses similarity between embeddings, while BM25 scores matches
@@ -122,30 +121,46 @@ generation?
 
 \subsection{CUDA operators and transcription latency}
 \label{sec:asr-kernels}
-We implement rotary position embeddings (RoPE), reductions and normalisation,
-tiled GEMM, and tiled attention for the supplied GLM-ASR-Nano model. Online
-softmax lets the attention kernel process scores in tiles without storing the
-full matrix. All four supplied CUDA test suites pass on an NVIDIA RTX A6000.
+We implement four CUDA operator groups for GLM-ASR-Nano. All four supplied
+test suites pass on an NVIDIA RTX A6000. In Task~1 (RoPE), the kernel rotates
+the query and key prefixes in one launch. The encoder case moves 15.36~MB
+per call and achieves 600~GB/s, 78\% of the quoted peak. In Task~2, online
+softmax combines the maximum and sum reductions and reads the input twice
+instead of three times, counting source-level loads. In Task~4, tiled
+attention updates the softmax as it reads key and value tiles. This avoids
+materialising the 171.66~MiB encoder score matrix and uses 17.125~KiB of
+shared memory per block. Appendix~\ref{app:asr-answers} gives the derivations.
 
 On the same 3.50~s clip, three runs per configuration give mean transcription
 times of 521.3~ms with GPU PyTorch, 483.1~ms with the Task~1 preset and
-1,986.1~ms with all CUDA groups. The timer starts with the model loaded and
-audio features prepared. All three reproduce the reference words. The Task~1
-preset also enables supplied CUDA kernels, so the timing covers the whole
-preset. In the separate all-CUDA profiling pass, linear operations account for
-83.8\% of kernel time and attention for 15.4\%. Our encoder \texttt{q\_proj}
-reaches 2.97~TFLOP/s against 20.31~TFLOP/s for cuBLAS on the same shape.
-The profile and throughput gap point to linear layers as the main
-optimisation target.
+1,986.1~ms with all CUDA groups. We start the timer after loading the model
+and preparing audio features. All three reproduce the reference words.
+The Task~1 preset also enables supplied CUDA kernels, so the 38.2~ms
+saving measures the preset as a whole.
+
+Our Task~3 GEMM stages input and weight tiles in shared memory. On encoder
+\texttt{q\_proj}, the tiled kernel reaches 2.97~TFLOP/s, about $5.8\times$
+the naive kernel's 0.515~TFLOP/s. It keeps one output accumulator per
+thread. Register tiling could reuse operands across several outputs per
+thread and help explain cuBLAS's 20.31~TFLOP/s on the same shape.
+At the decoder's single-token \texttt{lm\_head}, only one of the 16
+thread rows produces outputs. Here the tiled kernel reaches 179~GFLOP/s,
+below the naive kernel's 200~GFLOP/s. In the separate all-CUDA transcription
+profile, 2,757 linear calls take 1.670~s (83.8\% of kernel time), and
+attention takes 15.4\%. The profile makes linear layers the first target
+for improving the all-CUDA path. The kernel timings show why that work
+needs to cover both encoder and decoder shapes.
 
 \subsection{Dense5 baseline}
 The supplied pipeline transcribes each audio question with GLM-ASR-Nano and
 encodes the transcript with \texttt{enc\_a}~\citep{reimers2019sbert}. Exact cosine
 search ranks 24,000 document embeddings. Dense5 sends the first five complete
-records in dense order, along with the transcript, to EuroLLM via ELM. The thirty
-questions in our ASR interface check yield identical transcripts and retrieval
-recall in the CUDA and reference caches. We reuse a saved transcript for each
-question in the RAG comparisons to hold the upstream input fixed.
+records in dense order, along with the transcript, to EuroLLM via ELM. On
+30 practice questions, the all-CUDA and GPU PyTorch caches contain identical
+transcripts for each question, and both yield the same dense recall. With the
+encoder and corpus fixed, an identical transcript gives retrieval the same
+input. We therefore fix the transcript in the RAG comparisons and vary the
+evidence selection downstream.
 
 \begin{figure}[t]
 \centering
@@ -233,41 +248,40 @@ offline evaluation.
 \section{Results and Analysis}
 \label{sec:results}
 
-\subsection{Coverage and answer quality with a larger context}
-The initial dense ranking covers 0.421 of labelled documents at rank 5 and
-0.770 at rank 100 on practice. We first test whether the generator benefits
-from seeing more of the evidence already in that ranking.
+\subsection{Cost of sending more documents}
+Dense5 misses every labelled document on 143 of 350 practice questions.
+For 51 of these questions, the first labelled document ranks 6--20, so
+Dense20 gives the generator its first labelled document. Another 50
+have their first hit at ranks 21--100, and 42 have no hit in the top 100.
+We use rank 100 to measure candidate coverage. The uncapped generation
+comparison uses five or twenty full documents in dense order.
 
-\begin{table}[t]
-\centering\small
-\caption{Context quantity in the initial experiment. Recall uses the document
-IDs selected by each arm. Input length and score are means. Generation is
-median API time in seconds per query.}
-\label{tab:context-quantity}
-\begin{tabular}{@{}llrrrr@{}}
-\toprule
-Split & Context & Recall & Input tokens & Score & Gen. (s) \\
-\midrule
-Practice (350) & Dense5 & .421 & 1290 & .3267 & 3.655 \\
-& Dense20 & .579 & 4984 & .3262 & 4.830 \\
-& Dense budget & .548 & 4096 & .3245 & 4.875 \\
-\midrule
-Dev (125) & Dense5 & .379 & 1209 & .3307 & 4.532 \\
-& Dense20 & .580 & 4948 & .3307 & 5.871 \\
-& Dense budget & .566 & 4096 & .3280 & 5.672 \\
-\bottomrule
-\end{tabular}
-\end{table}
+\begin{figure}[t]
+\centering
+\includegraphics[width=\linewidth]{figures/dense-context-cost.pdf}
+\caption{Mean input tokens and mean normalised judge scores for two measured
+context sizes on each split. Lines connect Dense5 and Dense20 within a split.}
+\label{fig:dense-context-cost}
+\end{figure}
 
-On dev, Dense20 raises selected-document recall by 0.200, with roughly four
-times the input tokens and 1.339~s more median generation time per query
-(Table~\ref{tab:context-quantity}). The mean paired answer-score difference is
-$0.0000$ (95\% interval $[-0.0440,0.0427]$). A token cap retains much of the
-coverage gain, and the initial answer-score intervals all include zero
-(Appendix~\ref{app:initial-paired}). Since expanding the prompt changes both
-the amount and the mix of evidence, this comparison leaves their separate
-effects unresolved. We therefore return to five documents and change which
-ones the generator receives.
+On practice, Dense20 raises selected-document recall from 0.421 to 0.579
+and increases mean input length from 1,290 to 4,984 tokens
+(Figure~\ref{fig:dense-context-cost}). Median generation time rises from
+3.655 to 4.830~s, while the mean judge score moves from 0.3267 to 0.3262
+($\Delta=-0.0005$, 95\% paired interval $[-0.0314,0.0317]$).
+Zero-score answers increase from 146 to 150. In an exploratory comparison
+of the 143 questions without a Dense5 hit, the mean difference is
+$+0.0245$ ($[-0.0169,0.0641]$).
+On dev, median generation takes 1.339~s longer and the mean paired score
+difference is $0.0000$ ($[-0.0440,0.0427]$). A 4,096-token cap retains
+most of the recall gain with similar mean scores
+(Appendix~\ref{app:initial-paired}).
+
+\citet{liu2024lost} also observe that reader performance levels off
+before retriever recall in open-domain QA. In our runs, the added input
+and generation time yield no clear answer-score gain. We therefore test
+whether reranking a deeper candidate pool can improve the evidence in
+the five documents sent to the generator.
 
 \subsection{Candidate depth and reranker choice}
 On practice, MiniLM-L6 reaches Recall@5 of 0.411, 0.399 and 0.388 at depths
@@ -346,9 +360,13 @@ principle to reranking. At similar prompt lengths, the attributed cost still
 increases by 6.022~s on practice and 5.690~s on dev per question. Reranking
 accounts for 5.743 and 5.621~s, respectively, or about 95\% of the extra time
 on practice. API time can also vary with the generated output and service load.
-A separate ten-query probe with generation disabled records 2.622~s for ASR
-out of 2.646~s of mean audio-to-context stage time. The clip benchmark, this
-probe and the cached answer runs cover different workloads and timing endpoints.
+In a separate ten-query probe, ASR takes 2.622~s of the 2.646~s mean
+audio-to-context time, with roughly 24~ms for encoding and retrieval.
+ASR therefore dominates this path before generation. The reranking and
+generation times above come from runs with cached transcripts. Comparing
+these stages identifies where each configuration spends time. Measuring the
+total audio-to-answer latency requires running the same audio requests
+through generation.
 
 \subsection{Where recall and answer scores diverge}
 \label{sec:failure-analysis}
@@ -428,17 +446,16 @@ and one generation and judgement per condition. The effect of the judge's
 misreadings on the mean gain remains unknown. Qwen-0.6B improves recall over
 Dense5 and reranks faster than 4B. Its effect on answer scores remains open.
 
-With the ASR transcripts and generator fixed, reranking the same top 100
-candidates to select five improves recall on both splits. On practice, the
-mean judge score rises from 0.3374 to 0.3819 and mean input length changes
-from 1,290 to 1,267 tokens. On the previously inspected dev split, the
-answer-score interval includes zero.
-Evidence selection and generation take an estimated 6.022~s longer per
-practice question, mostly due to reranking. Upstream, the Task~1 preset saves
-time on the reference clip, and all-CUDA takes longer than GPU PyTorch. With
-initial retrieval held fixed, ASR would need to save more time than the answer
-stage adds to shorten the full audio-to-answer wait. Evaluating that trade-off
-requires timing matched audio requests through generation.
+We use a fixed transcript to separate the two optimisation decisions. For
+ASR, the Task~1 preset is fastest on the reference clip, and the all-CUDA
+profile points to GEMM as the priority for further kernel work. For RAG,
+Dense5 is the lower-latency baseline. Qwen-4B uses a similar prompt length
+and raises the practice judge score from 0.3374 to 0.3819, with an estimated
+6.022~s of additional downstream time per question, mostly in reranking.
+The dev interval includes zero. For a latency-sensitive deployment, these
+measurements favour starting with Dense5 and testing the Task~1 preset
+on matched audio requests. The Qwen-4B configuration is a candidate when
+the response-time budget allows for reranking.
 
 % References are excluded from the main-body page limit.
 \bibliography{references}
@@ -520,6 +537,12 @@ Task-1-only and PyTorch-only timings:
 \path{rag/results/selection-run-full/comparison.json} and
 \path{rag/results/dev-validation/comparison.json}, fields
 \texttt{per\_arm} and \texttt{paired}.
+Figure~\ref{fig:dense-context-cost} uses \path{report/plot_dense_context_cost.py}.
+For the practice rank counts and the exploratory no-hit contrast, join the
+archived rankings in \path{rag/results/diagnostic-retrieval-3713758/rankings.jsonl}
+to the \texttt{dense20 minus dense5} paired differences by query ID.
+Use the 143 queries with zero Recall@5 and the same 5,000-resample bootstrap
+as the initial comparison.
 Corpus size and baseline model settings:
 \path{rag/experiments/baseline-3713067.md}.
 \par\noindent\textbf{Candidate-pool, latency, ASR--RAG and lexical diagnostics:}
