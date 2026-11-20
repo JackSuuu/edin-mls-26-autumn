@@ -291,6 +291,11 @@ audio-to-context time, with roughly 24~ms for encoding and retrieval.
 ASR therefore dominates this path before generation. The reranking and
 generation times above come from runs with cached transcripts.
 
+In a separate paired timing probe on ten practice audio queries, both routes
+ran from audio to answer with all CUDA ASR groups enabled. Dense5 averaged
+9.06~s and Qwen-4B averaged 17.14~s. The mean paired increase was 8.08~s,
+with 7.44~s spent on Qwen-4B reranking (Appendix~\ref{app:reproduce}).
+
 Figure~\ref{fig:answer-score-latency} compares answer quality under assumed
 response deadlines. Estimated audio-to-answer time adds the mean
 audio-to-context time of 2.646~s to each query's selection and generation times.
@@ -321,9 +326,10 @@ first plotted lead.}
 
 \subsection{Where recall and answer scores diverge}
 \label{sec:failure-analysis}
-On practice, the 82 queries where Qwen-4B improves Recall@5 gain 0.125
-in mean paired judge score. Another 77 score higher at unchanged recall,
-which can mask changes in document identity or order
+Against Dense5, Qwen-4B raises the judge score on 115 practice queries,
+ties on 155 and lowers it on 80. The 82 queries with improved Recall@5
+gain 0.125 in mean paired score. Another 77 score higher at unchanged
+recall, which can mask changes in document identity or order
 (Appendix~\ref{app:recall-score}).
 
 Of Qwen-4B's 121 zero-score answers, 32 had no labelled document in the
@@ -385,42 +391,41 @@ latency (Figure~\ref{fig:answer-score-latency}). For interactive question
 answering, the choice of reranker therefore depends on the quality it can
 deliver within the user's response budget.
 
-Transcription also uses part of the response deadline. On the reference clip,
-the Task~1 preset reduced mean transcription time from 521.3 to 483.1~ms
-relative to GPU PyTorch. The all-CUDA path took 1,986.1~ms. All three
-configurations reproduced the reference words. Linear layers accounted for
-83.8\% of all-CUDA kernel time, making GEMM the first target for reducing
-transcription latency on this path.
+Transcription also uses part of the response deadline. The Task~1 preset
+rotates the query and key prefixes in one CUDA RoPE launch, enables the
+supplied CUDA kernels and keeps reductions, GEMM and attention in GPU
+PyTorch. On the reference clip, it took 483.1~ms, compared with 521.3~ms
+for GPU PyTorch and 1,986.1~ms for the all-CUDA path. All three reproduced
+the reference words. Linear layers accounted for 83.8\% of all-CUDA kernel
+time, making GEMM the first target for improving that path.
 
-User experience depends on both responsiveness and the usefulness of the
-answer. A time-sensitive factual query may favour an immediate reply.
-A question about whether a rule applies may warrant more time for an answer
-that includes the relevant qualifications. A controlled study of text-based LLM
-assistants found that response delays changed users' ratings of answer
-usefulness~\citep{tan2026responselatency}.
+Response delay can affect perceived answer usefulness~\citep{tan2026responselatency}.
+For tight deadlines, we would first test the Task~1 preset with Dense5 to
+keep transcription and evidence selection fast. With more time, we would
+retain the same ASR preset and use Qwen-4B when the expected improvement
+in answer quality justifies its additional reranking cost. Our paired
+audio-to-answer probe used all-CUDA ASR. We would test both Task~1
+combinations on the same audio and measure transcript agreement,
+audio-to-answer latency and answer quality before choosing a deployment
+default.
 
-\subsection{Future work on multi-user serving}
+\subsection{Adaptive routing for multi-user serving}
 
-Our evaluation covers one request at a time. If concurrent requests share a
-reranking GPU, additional work on one query could delay other users' answers.
-The effect on throughput and tail latency would depend on batching, scheduling
-and available GPU capacity. Following work on scheduling LLM requests with
-response targets~\citep{zhang2026jitserve}, we would evaluate how much answer
-quality a shared audio RAG service can deliver within its latency and compute
-budgets.
+Answer gains from reranking vary across queries. Qwen-0.6B improved recall
+over Dense5 and reranked faster than Qwen-4B. Its paired answer-score interval
+against Dense5 included zero (Appendix~\ref{app:reproduce}).
+\citet{ray2025metis} adapt the number of retrieved chunks and the generation
+strategy to each query. For multi-user serving, our adaptive routing policy
+would choose Dense5, Qwen-0.6B or Qwen-4B per query under a shared reranking
+GPU budget.
 
-Some answers score lower after reranking. Qwen-0.6B improved recall over
-Dense5 and reranked faster than Qwen-4B. In the later answer comparison,
-its paired score interval against Dense5 included zero
-(Appendix~\ref{app:reproduce}). These results motivate testing an adaptive
-policy that chooses among Dense5, Qwen-0.6B and Qwen-4B. We would first test
-whether signals such as the score gap near the retrieval cutoff predict answer
-gains. A policy could then reserve Qwen-4B for queries likely to benefit and
-with enough time left given the GPU queue. To evaluate it, we would replay
-the same questions at increasing arrival rates and compare it with fixed
-routes at the same GPU budget. The comparison would measure throughput,
-mean answer score with late replies assigned zero, and GPU time per on-time
-answer.
+We would test whether the dense score gap at the top-five cutoff predicts
+each reranker's answer-score gain over Dense5. The policy would choose the
+route with the largest predicted gain that fits the response time left after
+transcription and retrieval and the available GPU budget. We would compare
+adaptive routing with fixed routes on the same queries under equal response
+deadlines and GPU budgets. We would measure mean answer score with late
+replies assigned zero and reranking GPU time per query.
 
 % References are excluded from the main-body page limit.
 \bibliography{references}
@@ -518,6 +523,11 @@ Corpus size and baseline model settings:
 \path{rag/results/bm25-compare-dev/summary.json}.
 Pilot CPU costs: \path{rag/experiments/selection-pilot-metrics.json}
 and \path{rag/experiments/selection-pilot-results.md}.
+\par\noindent\textbf{Paired audio-to-answer timing:}
+\path{rag/extensions/time_dense_qwen_audio.py},
+\path{rag/results/paired-audio-cost-20261118-233916/rows.jsonl} and
+\path{rag/results/paired-audio-cost-20261118-233916/summary.json}.
+The summary excludes the warm-up pair.
 \par\noindent\textbf{Judge consistency, prefix checks, correlations and timing maxima:}
 \path{rag/results/report-evidence/summary.json}, reproduced by
 \path{rag/extensions/audit_report_evidence.py} from local saved outputs.
