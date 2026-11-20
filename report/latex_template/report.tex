@@ -36,6 +36,7 @@
 \usepackage{url}
 \usepackage{booktabs}
 \usepackage{graphicx}
+\usepackage{float}
 \usepackage{amsmath}
 \usepackage{amssymb}
 
@@ -113,10 +114,10 @@ assess a document's value by measuring how removing it affects the generator.
 We therefore evaluate the answers produced by our five-document selections.
 
 {\fontfamily{lmr}\fontseries{bx}\selectfont Research Question.}
-With the ASR transcripts and generator fixed,
-can reranking the same top 100 candidates turn higher recall into better
-answers at similar input lengths? How much extra time does this add across
-evidence selection and answer generation?
+We study the trade-off between answer quality, response latency and
+generator input token count in audio RAG. With ASR transcripts and generation
+settings fixed, we compare context expansion and reranking a fixed pool of
+100 candidates to test whether gains in document recall yield better answers.
 
 \section{System and Technical Approach}
 \label{sec:approach}
@@ -167,10 +168,7 @@ evidence selection downstream.
 \begin{figure}[t]
 \centering
 \includegraphics[width=\linewidth]{figures/audio-rag-architecture.pdf}
-\caption{Audio RAG pipeline and controlled reranking comparison. Both arms share
-a saved transcript and the dense top 100. Qwen scores matched document prefixes.
-EuroLLM receives five full records per arm. The cards show original dense
-ranks for one practice query.}
+\caption{Audio RAG pipeline and controlled reranking.}
 \label{fig:architecture}
 \end{figure}
 
@@ -235,44 +233,69 @@ sending the first 20 full records improves answers.
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=\linewidth]{figures/dense-context-cost.pdf}
-\caption{All panels use the same 350 practice queries. The left panel shows
-the first labelled rank. The $>100$ group has no labelled hit in the top 100.
-The other panels compare mean generator input and normalised judge score for
-Dense5 and Dense20.}
+\includegraphics[width=0.90\linewidth]{figures/dense-context-cost.pdf}
+\caption{First labelled rank, input tokens and judge score on 350 practice
+queries. The $>100$ bin has no hit in the top 100.}
 \label{fig:dense-context-cost}
 \end{figure}
 
 On practice, Dense20 raises recall from 0.421 to 0.579 and uses $3.9\times$
 as many input tokens (centre panel). Median generation takes 1.175~s longer.
 The paired score difference is $-0.0005$ (95\% interval $[-0.0314,0.0317]$,
-right panel), and dev also shows no clear gain
-(Appendix~\ref{app:initial-paired}). \citet{liu2024lost} observe a similar gap
-in open-domain QA. We next test evidence selection at a fixed context of five
-documents.
+right panel), and dev also shows no clear gain. A 4,096-token cap retains most
+of the practice recall gain (0.548), with a mean judge score of 0.325 versus
+0.327 for Dense5 (Appendix~\ref{app:initial-paired}). \citet{liu2024lost}
+observe a similar gap in open-domain QA. We next test evidence selection at
+a fixed context of five documents.
 
 \subsection{Candidate depth and reranker choice}
-Deepening the MiniLM-L6 pool from 20 to 100 lowers Recall@5 from 0.411 to
-0.388, below Dense5's 0.421. L12 recovers some of this loss at depth 100
-(Appendix~\ref{app:model-control}).
+The dense top 100 cover more labelled evidence than the top 20
+(77.0\% versus 57.9\% recall, Figure~\ref{fig:reranker-ranking-curves}, left).
+With five documents sent to the generator, MiniLM-L6's Recall@5 falls from
+0.411 to 0.399 and 0.388 across candidate depths 20, 50 and 100. L12 partly
+recovers this loss at depth 100 (Appendix~\ref{app:model-control}).
 
 \begin{figure}[t]
 \centering
 \includegraphics[width=\linewidth]{figures/reranker-ranking-curves.pdf}
-\caption{Mean retrieval metrics at ranks $k=1,5,10,20,40,60,80,100$ over 350
-practice queries. All configurations rank the same 100 candidates per query.
-Matched Qwen variants see the source prefix visible to MiniLM. Open Qwen
-markers show the native 2,048-token setting. Recall@100 has a shared marker.}
+\caption{Retrieval metrics by rank cutoff on 350 practice queries with a
+shared top-100 pool. Open Qwen markers denote the native 2,048-token limit.}
 \label{fig:reranker-ranking-curves}
 \end{figure}
 
-At the generation cutoff, Recall@5 rises from 42.1\% with Dense5 to 46.7\%
-with matched Qwen-0.6B and 52.6\% with matched Qwen-4B
-(Figure~\ref{fig:reranker-ranking-curves}). The 4B gain over Dense5 is
-10.49 percentage points (95\% paired interval $[7.26,13.78]$), with median
-reranking times of 5.68~s for 4B and 1.44~s for 0.6B. Longer 4B inputs add
-latency with no clear Recall@5 benefit (Appendix~\ref{app:qwen}). We use
-matched Qwen-4B to test whether its recall gain improves answers.
+Figure~\ref{fig:reranker-ranking-curves} holds the pool at 100 and varies
+$k$, the number of ranks evaluated. All methods share Recall@100. At
+the generation cutoff ($k=5$), recall rises from 42.1\% in dense order to
+46.7\% with matched Qwen-0.6B and 52.6\% with matched Qwen-4B. At $k=10$,
+4B raises nDCG from 0.420 to 0.534 and MRR from 0.489 to 0.596, reflecting
+better placement of relevant documents and earlier first hits overall
+(centre and right). Median reranking takes 5.68~s for 4B and 1.44~s for
+0.6B. Longer 4B inputs add latency with no clear Recall@5 benefit
+(Appendix~\ref{app:qwen}). We next test whether the five documents selected
+by matched 4B improve answers and measure the added response time.
+
+\begingroup
+\setlength{\intextsep}{6pt plus 2pt minus 1pt}
+\begin{figure}[H]
+\centering
+% Crop the embedded axis title and align its LaTeX replacement with the plot.
+\includegraphics[width=0.76\linewidth,trim=0 29bp 0 0,clip]{figures/answer-score-latency.pdf}%
+% Use percentages of the figure width to align the guide with the 17 s tick.
+\llap{%
+  \setlength{\unitlength}{0.0076\linewidth}%
+  \begin{picture}(100,0)
+    \color[gray]{0.55}\linethickness{0.55pt}%
+    \multiput(80.53,5.72)(0,1.335){22}{\line(0,1){0.78}}%
+  \end{picture}%
+}\\[2pt]
+\makebox[0.76\linewidth]{\hspace{0.08\linewidth}\small\fontfamily{lmss}\selectfont
+  Estimated end-to-end latency (s)}
+\caption{Mean answer score by response-time limit on 350 practice
+queries, with late answers scored as zero. The dashed line marks Qwen-4B's
+first plotted lead.}
+\label{fig:answer-score-latency}
+\end{figure}
+\endgroup
 
 \subsection{Answer gains and their latency cost}
 Reranking improves practice answers at a similar prompt length. Both
@@ -297,36 +320,44 @@ audio-to-context time, with roughly 24~ms for encoding and retrieval.
 ASR therefore dominates this path before generation. The reranking and
 generation times above come from runs with cached transcripts.
 
-Figure~\ref{fig:answer-score-latency} compares answer quality under assumed
-response deadlines. We estimate audio-to-answer time by adding stage timings
-from separate single-request runs. At each deadline, we average scores over
-all queries and assign zero to any answer estimated to arrive late. With a 16~s budget,
-the mean score for Qwen-4B is 0.305, below 0.337 for Dense5 and Qwen-0.6B.
-With a 17~s budget, more Qwen-4B answers count and its score rises to 0.344,
-above both alternatives. The Qwen-0.6B answers were generated in a later ELM
-service window, so differences in service load may affect the latency comparison.
+In a separate paired timing probe on ten practice audio queries, both routes
+ran from audio to answer with all CUDA ASR groups enabled. Dense5 averaged
+9.06~s and Qwen-4B averaged 17.14~s. The mean paired increase was 8.08~s,
+with 7.44~s spent on Qwen-4B reranking (Appendix~\ref{app:reproduce}).
 
-\begin{figure}[t]
-\centering
-\includegraphics[width=0.76\linewidth]{figures/answer-score-latency.pdf}
-\caption{Illustrative deadline-constrained answer quality on 350 practice
-queries. Estimated latency adds a shared mean audio-to-context time of 2.646~s
-to each query's selection and generation times. The mean score includes all
-queries, with zero credit for estimated late answers.}
-\label{fig:answer-score-latency}
-\end{figure}
+Figure~\ref{fig:answer-score-latency} compares answer quality at different
+response-time limits. Estimated audio-to-answer time adds the mean
+audio-to-context time of 2.646~s to each query's selection and generation times.
+At 16~s, Qwen-4B scores 0.305, below 0.337 for Dense5 and Qwen-0.6B. At 17~s,
+Qwen-4B rises to 0.344, above both alternatives. The Qwen-0.6B answers were
+generated in a later ELM service window, so differences in service load may
+affect the latency comparison.
 
 \subsection{Where recall and answer scores diverge}
 \label{sec:failure-analysis}
-On practice, the 82 queries where Qwen-4B improves Recall@5 gain 0.125
-in mean paired judge score. Another 77 score higher at unchanged recall,
-which can mask changes in document identity or order
-(Appendix~\ref{app:recall-score}).
+Qwen-4B raises more judge scores than it lowers in the paired practice
+comparison (Figure~\ref{fig:score-diagnostics}). Queries with unchanged
+Recall@5 contribute $+0.0226$ to the overall mean gain of $+0.0445$.
+We compare the saved top-five IDs for those 246 queries. Qwen-4B changes
+the document set on 244 queries and changes only the order on two, whose
+scores tie. The generator can therefore receive different evidence even
+when the number of labelled hits stays the same. With one generation and
+judgement per answer, the contribution of run-to-run variation remains
+uncertain (Appendix~\ref{app:recall-score}).
 
-Of Qwen-4B's 121 zero-score answers, 32 had no labelled document in the
-top 100 and 30 had labelled candidates but none in the top five. Another
-29 had partial coverage and 30 had full coverage. In total, 30 of 131
-fully covered answers scored zero.
+\begingroup
+\setlength{\intextsep}{6pt plus 2pt minus 1pt}
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.66\linewidth]{figures/score-diagnostics.pdf}
+\caption{Paired judge-score changes for Qwen-4B versus Dense5 on 350
+practice queries.}
+\label{fig:score-diagnostics}
+\end{figure}
+\endgroup
+
+Even with full labelled coverage, 30 of 131 Qwen-4B answers score zero.
+This motivates checking how the generator and judge use the source text.
 
 In the crisis-assets case, the generator says gold and silver are useful
 \emph{during} the crisis. The source says \emph{after}. The judge flags
@@ -341,19 +372,28 @@ assessment~\citep{leung2026ragerrors,ru2024ragchecker}
 The low- and zero-scoring answers in Section~\ref{sec:failure-analysis}
 motivated three follow-ups (Figure~\ref{fig:targeted-follow-up}). BM25 found
 labelled sources outside the dense top 100 on eight queries, and fusion
-lowered mean Recall@5. Fixed-five chunking retained labelled sources and
-lowered the mean score. Chunk-based reranking recovered labelled text on 3 of
-12 queries with labelled sources at ranks 6--20. Two of those answers improved,
-and both paired score intervals include zero. The prompt variants helped some
-answers, with lower mean scores and longer generation times overall.
+lowered mean Recall@5.
+
+Both chunking comparisons cap generator input at 768 tokens. On 12 practice
+queries that already had labelled text in the prompt, we fix the top five
+documents and replace document prefixes with selected chunks. Labelled text
+remains present on all 12 queries, and the paired mean score changes by
+$-0.035$. On a separate set of 12 queries with labelled documents at ranks
+6--20 and none in the top five, we fix the chunk-packing rule and rerank
+the top 20 documents by their best chunk. This brings labelled text into
+three prompts, and the paired mean score changes by $+0.097$. Two of those
+three answers improve. Both score intervals include zero
+(Figure~\ref{fig:targeted-follow-up}, b and Appendix~\ref{app:alternative-rag}).
+
+The prompt variants helped some answers, with lower mean scores and longer
+generation times overall.
 
 \begin{figure}[!htbp]
 \centering
 \includegraphics[width=0.93\linewidth]{figures/targeted-follow-up.pdf}
-\caption{Targeted follow-up comparisons. (a) Recall@5 on 125 dev queries.
-(b) Paired mean score differences with 95\% query-bootstrap intervals on 12
-practice queries per row and a 768-token input cap. (c) Score-change counts
-against each prompt's baseline on 24 practice queries with fixed evidence.}
+\caption{Follow-ups on (a) retrieval (125 dev queries), (b) chunking (12 practice
+queries per row, 95\% paired bootstrap intervals) and (c) prompts (24 practice
+queries).}
 \label{fig:targeted-follow-up}
 \end{figure}
 
@@ -362,46 +402,42 @@ against each prompt's baseline on 24 practice queries with fixed evidence.}
 
 \subsection{Conclusion}
 
-With ASR transcripts and generation settings fixed, Qwen-4B recovered more
-labelled evidence from the same candidate pool and raised mean answer scores
-at a similar prompt length. The estimated time for evidence selection and
-generation more than doubled, with most of the increase spent on reranking.
-When late answers receive zero credit, Dense5 has the higher mean score at
-tighter response deadlines. With more time, more Qwen-4B answers contribute
-their original scores, and its higher answer quality can offset the added
-latency (Figure~\ref{fig:answer-score-latency}). For interactive question
-answering, the choice of reranker therefore depends on the quality it can
-deliver within the user's response budget.
+We find that Qwen-4B reranking improved the mean practice judge score by
+0.0445 at comparable prompt lengths. Most of the additional response time
+in the paired audio-to-answer probe came from reranking. The quality gain
+therefore has to be assessed alongside the time spent selecting evidence.
 
-User experience depends on both responsiveness and the usefulness of the
-answer. A time-sensitive factual query may favour an immediate reply.
-A question about whether a rule applies may warrant more time for an answer
-that includes the relevant qualifications. A controlled study of text-based LLM
-assistants found that response delays changed users' ratings of answer
-usefulness~\citep{tan2026responselatency}.
+The ASR comparison identifies a separate way to reduce response time.
+On the reference clip, the Task~1 RoPE preset reduced mean transcription
+time by 38.2~ms relative to GPU PyTorch and reproduced the reference words.
+The all-CUDA configuration took longer, with linear layers accounting for
+83.8\% of its kernel time. Based on these separate stage measurements,
+we propose pairing the Task~1 RoPE preset with Qwen-4B reranking.
 
-\subsection{Future work on multi-user serving}
+For interactive audio RAG, we recommend choosing ASR configurations by their
+transcription time at comparable transcript quality. The remaining response
+time and GPU budget then guide how much compute to spend on evidence selection.
+The system should assess that investment by the improvement in the final answer.
 
-Our evaluation covers one request at a time. If concurrent requests share a
-reranking GPU, additional work on one query could delay other users' answers.
-The effect on throughput and tail latency would depend on batching, scheduling
-and available GPU capacity. Following work on scheduling LLM requests with
-response targets~\citep{zhang2026jitserve}, we would evaluate how much answer
-quality a shared audio RAG service can deliver within its latency and compute
-budgets.
+\subsection{Adaptive routing for multi-user serving}
 
-Some answers score lower after reranking. Qwen-0.6B improved recall over
-Dense5 and reranked faster than Qwen-4B. In the later answer comparison,
-its paired score interval against Dense5 included zero
-(Appendix~\ref{app:reproduce}). These results motivate testing an adaptive
-policy that chooses among Dense5, Qwen-0.6B and Qwen-4B. We would first test
-whether signals such as the score gap near the retrieval cutoff predict answer
-gains. A policy could then reserve Qwen-4B for queries likely to benefit and
-with enough time left given the GPU queue. To evaluate it, we would replay
-the same questions at increasing arrival rates and compare it with fixed
-routes at the same GPU budget. The comparison would measure throughput,
-mean answer score with late replies assigned zero, and GPU time per on-time
-answer.
+On the practice split, Qwen-4B improved the mean answer score and added
+5.74~s of reranking time per query. The answer-quality gains varied across
+queries. In a distributed audio RAG service, this variation motivates
+selective reranking across requests that share a GPU budget.
+\citet{ray2025metis} show that the preferred context size and synthesis method
+can vary across queries. The same principle motivates adapting the
+evidence-selection route to each query.
+
+An adaptive routing policy could use features of the initial retrieval
+results to estimate the answer-quality gain of each reranker over Dense5.
+Queries with sufficient evidence among the top dense results could proceed
+directly to generation. For other queries, the policy could choose Qwen-0.6B
+or Qwen-4B according to the expected quality gain, added response time, and
+available GPU budget. The policy could also adapt the number of passages
+passed to the generator, reducing input tokens when a shorter context is
+sufficient. The objective is to maximise expected answer quality across
+requests within end-to-end response-time targets and a shared compute budget.
 
 % References are excluded from the main-body page limit.
 \bibliography{references}
@@ -499,6 +535,11 @@ Corpus size and baseline model settings:
 \path{rag/results/bm25-compare-dev/summary.json}.
 Pilot CPU costs: \path{rag/experiments/selection-pilot-metrics.json}
 and \path{rag/experiments/selection-pilot-results.md}.
+\par\noindent\textbf{Paired audio-to-answer timing:}
+\path{rag/extensions/time_dense_qwen_audio.py},
+\path{rag/results/paired-audio-cost-20261118-233916/rows.jsonl} and
+\path{rag/results/paired-audio-cost-20261118-233916/summary.json}.
+The summary excludes the warm-up pair.
 \par\noindent\textbf{Judge consistency, prefix checks, correlations and timing maxima:}
 \path{rag/results/report-evidence/summary.json}, reproduced by
 \path{rag/extensions/audit_report_evidence.py} from local saved outputs.
@@ -547,12 +588,13 @@ Offline audits:
 \path{rag/results/qwen4-dev-validation-20261117-v1/retrieval/offline-audit.json},
 \path{rag/results/qwen4-dev-validation-20261117-v1/answer-evaluation/comparison.json},
 \path{rag/results/qwen4-dev-validation-20261117-v1/answer-evaluation/offline-audit.json}.
-\par\noindent\textbf{Quality--cost figure and arithmetic:}
-\path{report/plot_quality_cost.py},
-\path{report/latex_template/figures/qwen-quality-cost.pdf} and
-\path{rag/results/report-quality-cost/summary.json}.
-The script reads both fresh answer comparisons separately, preserves the full score axes,
-and uses no model or API calls.
+\par\noindent\textbf{Targeted follow-up figure:}
+Figure~\ref{fig:targeted-follow-up} is stored at
+\path{report/latex_template/figures/targeted-follow-up.pdf}.
+Panel (a) uses \path{rag/results/bm25-compare-dev/summary.json}.
+Panel (b) uses \path{rag/results/document-chunking-768-v1/summary.json}.
+The chunking runner is \path{rag/extensions/run_document_chunking.py}.
+Panel (c) uses the local prompt-pilot comparisons in Appendix~\ref{app:alternative-rag}.
 \par\noindent\textbf{System architecture figure:}
 Editable source: \path{report/latex_template/figures/audio-rag-architecture.drawio}.
 Vector PDF: \path{report/latex_template/figures/audio-rag-architecture.pdf}.
@@ -566,14 +608,10 @@ The example uses query \texttt{q\_ce474d8f8d548797} from
 \path{rag/results/practice-error-analysis-v1/summary.json},
 \path{rag/results/practice-error-analysis-v1/cases.json},
 \path{rag/results/practice-error-analysis-v1/REVIEW.md}.
-\par\noindent\textbf{Judge-zero figure and arithmetic:}
-\path{report/plot_zero_scores.py},
-\path{report/latex_template/figures/practice-zero-scores.pdf},
-\path{rag/results/report-zero-scores/summary.json}.
 \par
 To recompute summaries only, without invoking generation or judge:
 \begin{verbatim}
-~/mls-rag-env/bin/python \
+python \
   rag/extensions/summarize_selection_experiment.py \
   --run rag/results/selection-run-full \
   --judge-prefix judge_json_ --split practice \
@@ -714,7 +752,9 @@ Matched input controls visible source text approximately, not equal tokenization
 Full original records, not the matched prefixes, are then supplied to the
 unchanged generator in both fresh answer arms.
 
-Full-pool Recall@100 is 77.0\% for every selector. With the native 4B
+Full-pool Recall@100 is 77.0\% for every selector. Matched Qwen-4B gains
+10.49 percentage points in Recall@5 over dense (95\% paired interval
+$[7.26,13.78]$). With the native 4B
 scoring limit of 2,048 tokens including the template, median reranking
 takes 7.17~s and Recall@5 rises by 0.43 percentage points
 ($[-0.36,1.37]$) relative to matched 4B.
@@ -801,7 +841,8 @@ ID within each split. We check that the top five IDs in each ranking match the
 document IDs in its saved generation plan in the same order. Each row in the
 table groups questions by the direction of the Recall@5 change and counts the
 directions of the corresponding judge-score changes. We compare matched
-Qwen-4B with Dense5 throughout.
+Qwen-4B with Dense5 throughout. The plotting script for
+Figure~\ref{fig:score-diagnostics} is \path{report/plot_score_diagnostics.py}.
 
 \begin{center}
 \small
@@ -849,13 +890,13 @@ one fresh answer per arm and question, for 72 answers in total.
 
 All three arms used the same dense top-20 candidate pool for each question,
 Qwen-4B scorer, EuroLLM generator and judge, and 768-token cap on the full
-generator input. A ranks documents and packs prefixes from its top five. B
-keeps A's five documents, splits them into three-sentence windows with one
-sentence of overlap, and packs the highest-scoring chunks that fit, merging
-overlaps. This implements question-dependent selection of original text, as
-in \citet{chirkova2025provence}. C ranks the 20 documents by their best-scoring
-chunk, then uses B's packing rule on the resulting five. The scorer input cap
-was 2,048 tokens including the scoring template.
+generator input. Arm~A ranks documents and packs prefixes from its top five.
+Arm~B keeps those five documents, splits them into three-sentence windows
+with one sentence of overlap, and packs the highest-scoring chunks that fit,
+merging overlaps. This implements question-dependent selection of original
+text, as in \citet{chirkova2025provence}. Arm~C ranks the 20 documents by
+their best-scoring chunk, then uses arm~B's packing rule on the resulting
+five. The scorer input cap was 2,048 tokens including the scoring template.
 
 With labelled text already present, B versus A had 2 wins, 5 losses and 5 ties
 ($\Delta=-0.035$, 95\% paired query-bootstrap interval $[-0.188,0.118]$).
@@ -863,8 +904,8 @@ Mean scores were 0.625 for A and 0.590 for B at 735 and 728 input tokens,
 respectively. A and B both included labelled text on all 12 queries.
 On questions with labelled documents outside the baseline top five, C versus B
 had 4 wins, 1 loss and 7 ties ($\Delta=+0.097$, interval $[0.000,0.208]$).
-Mean scores were 0.181 for B and 0.278 for C at 742 and 743 input tokens,
-respectively. The number of prompts with labelled text rose from zero to three.
+Arm~B averaged 0.181 at 742 input tokens, and arm~C averaged 0.278 at 743
+input tokens. The number of prompts with labelled text rose from zero to three.
 Two wins coincided with a newly visible labelled source and two occurred without
 one. A source hit records that some text from a labelled document entered the
 prompt. The intervals resample the 12 questions within each group and reflect
@@ -883,8 +924,9 @@ took 0.573~s for B and 2.060~s for C. The mean sum of selection and generation
 API time was 6.880~s for B and 6.305~s for C. B's sum includes its attributed
 document-ranking time. C obtains its ranking directly from the chunk scores.
 The sums describe the observed stages of this pilot. The protocol and per-query
-outputs are available in the
-\href{https://github.com/JackSuuu/edin-mls-26-autumn/tree/817350bc0426c133a72c24bac68ca33ed41b27d8/rag/results/document-chunking-768-v1}{document chunking run record}.
+outputs are \path{rag/results/document-chunking-768-v1/protocol.json} and
+\path{rag/results/document-chunking-768-v1/per_query.json}
+(Appendix~\ref{app:reproduce}).
 
 Two completed prompt pilots use the same 24 practice questions chosen by
 their original judge scores and evidence coverage. The five Qwen-ranked
@@ -928,7 +970,8 @@ We used Codex to lay out Figures~\ref{fig:architecture},
 \ref{fig:reranker-ranking-curves}, and \ref{fig:answer-score-latency} in draw.io.
 We used Codex to reduce the height of Figure~\ref{fig:answer-score-latency}
 in the exported vector PDF.
-We used Codex to plot Figure~\ref{fig:targeted-follow-up} from the experiment outputs.
+We used Codex to plot Figures~\ref{fig:score-diagnostics}
+and~\ref{fig:targeted-follow-up} from the experiment outputs.
 EuroLLM via ELM generated answers and automated judgements as described in the
 methodology.
 The authors confirmed the representative diagnostic cases and remain responsible
