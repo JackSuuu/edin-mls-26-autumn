@@ -296,8 +296,8 @@ ran from audio to answer with all CUDA ASR groups enabled. Dense5 averaged
 9.06~s and Qwen-4B averaged 17.14~s. The mean paired increase was 8.08~s,
 with 7.44~s spent on Qwen-4B reranking (Appendix~\ref{app:reproduce}).
 
-Figure~\ref{fig:answer-score-latency} compares answer quality under assumed
-response deadlines. Estimated audio-to-answer time adds the mean
+Figure~\ref{fig:answer-score-latency} compares answer quality at different
+response-time limits. Estimated audio-to-answer time adds the mean
 audio-to-context time of 2.646~s to each query's selection and generation times.
 At 16~s, Qwen-4B scores 0.305, below 0.337 for Dense5 and Qwen-0.6B. At 17~s,
 Qwen-4B rises to 0.344, above both alternatives. The Qwen-0.6B answers were
@@ -318,7 +318,7 @@ affect the latency comparison.
 }\\[2pt]
 \makebox[0.76\linewidth]{\hspace{0.08\linewidth}\small\fontfamily{lmss}\selectfont
   Estimated end-to-end latency (s)}
-\caption{Mean answer score by estimated response deadline on 350 practice
+\caption{Mean answer score by response-time limit on 350 practice
 queries, with late answers scored as zero. The dashed line marks Qwen-4B's
 first plotted lead.}
 \label{fig:answer-score-latency}
@@ -380,34 +380,22 @@ queries).}
 
 \subsection{Conclusion}
 
-With ASR transcripts and generation settings fixed, Qwen-4B recovered more
-labelled evidence from the same candidate pool and raised mean answer scores
-at a similar prompt length. The estimated time for evidence selection and
-generation more than doubled, with most of the increase spent on reranking.
-When late answers receive zero credit, Dense5 has the higher mean score at
-tighter response deadlines. With more time, more Qwen-4B answers contribute
-their original scores, and its higher answer quality can offset the added
-latency (Figure~\ref{fig:answer-score-latency}). For interactive question
-answering, the choice of reranker therefore depends on the quality it can
-deliver within the user's response budget.
+We find that Qwen-4B reranking improved the mean practice judge score by
+0.0445 at comparable prompt lengths. Most of the additional response time
+in the paired audio-to-answer probe came from reranking. The quality gain
+therefore has to be assessed alongside the time spent selecting evidence.
 
-Transcription also uses part of the response deadline. The Task~1 preset
-rotates the query and key prefixes in one CUDA RoPE launch, enables the
-supplied CUDA kernels and keeps reductions, GEMM and attention in GPU
-PyTorch. On the reference clip, it took 483.1~ms, compared with 521.3~ms
-for GPU PyTorch and 1,986.1~ms for the all-CUDA path. All three reproduced
-the reference words. Linear layers accounted for 83.8\% of all-CUDA kernel
-time, making GEMM the first target for improving that path.
+The ASR comparison identifies a separate way to reduce response time.
+On the reference clip, the Task~1 RoPE preset reduced mean transcription
+time by 38.2~ms relative to GPU PyTorch and reproduced the reference words.
+The all-CUDA configuration took longer, with linear layers accounting for
+83.8\% of its kernel time. Based on these separate stage measurements,
+we propose pairing the Task~1 RoPE preset with Qwen-4B reranking.
 
-Response delay can affect perceived answer usefulness~\citep{tan2026responselatency}.
-For tight deadlines, we would first test the Task~1 preset with Dense5 to
-keep transcription and evidence selection fast. With more time, we would
-retain the same ASR preset and use Qwen-4B when the expected improvement
-in answer quality justifies its additional reranking cost. Our paired
-audio-to-answer probe used all-CUDA ASR. We would test both Task~1
-combinations on the same audio and measure transcript agreement,
-audio-to-answer latency and answer quality before choosing a deployment
-default.
+For interactive audio RAG, we recommend choosing ASR configurations by their
+transcription time at comparable transcript quality. The remaining response
+time and GPU budget then guide how much compute to spend on evidence selection.
+The system should assess that investment by the improvement in the final answer.
 
 \subsection{Adaptive routing for multi-user serving}
 
@@ -423,9 +411,9 @@ We would test whether the dense score gap at the top-five cutoff predicts
 each reranker's answer-score gain over Dense5. The policy would choose the
 route with the largest predicted gain that fits the response time left after
 transcription and retrieval and the available GPU budget. We would compare
-adaptive routing with fixed routes on the same queries under equal response
-deadlines and GPU budgets. We would measure mean answer score with late
-replies assigned zero and reranking GPU time per query.
+adaptive routing with fixed routes on the same queries under the same
+response-time limits and GPU budgets. We would measure mean answer score
+with late replies assigned zero and reranking GPU time per query.
 
 % References are excluded from the main-body page limit.
 \bibliography{references}
