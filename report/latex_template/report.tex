@@ -36,6 +36,7 @@
 \usepackage{url}
 \usepackage{booktabs}
 \usepackage{graphicx}
+\usepackage{float}
 \usepackage{amsmath}
 \usepackage{amssymb}
 
@@ -268,6 +269,26 @@ reranking times of 5.68~s for 4B and 1.44~s for 0.6B. Longer 4B inputs add
 latency with no clear Recall@5 benefit (Appendix~\ref{app:qwen}). We use
 matched Qwen-4B to test whether its recall gain improves answers.
 
+\begin{figure}[H]
+\centering
+% Crop the embedded axis title and align its LaTeX replacement with the plot.
+\includegraphics[width=0.76\linewidth,trim=0 29bp 0 0,clip]{figures/answer-score-latency.pdf}%
+% Use percentages of the figure width to align the guide with the 17 s tick.
+\llap{%
+  \setlength{\unitlength}{0.0076\linewidth}%
+  \begin{picture}(100,0)
+    \color[gray]{0.55}\linethickness{0.55pt}%
+    \multiput(80.53,5.72)(0,1.335){22}{\line(0,1){0.78}}%
+  \end{picture}%
+}\\[2pt]
+\makebox[0.76\linewidth]{\hspace{0.08\linewidth}\small\fontfamily{lmss}\selectfont
+  Estimated end-to-end latency (s)}
+\caption{Mean answer score by response-time limit on 350 practice
+queries, with late answers scored as zero. The dashed line marks Qwen-4B's
+first plotted lead.}
+\label{fig:answer-score-latency}
+\end{figure}
+
 \subsection{Answer gains and their latency cost}
 Reranking improves practice answers at a similar prompt length. Both
 conditions supply five full documents, and their mean input lengths differ
@@ -304,38 +325,28 @@ Qwen-4B rises to 0.344, above both alternatives. The Qwen-0.6B answers were
 generated in a later ELM service window, so differences in service load may
 affect the latency comparison.
 
-\begin{figure}[t]
-\centering
-% Crop the embedded axis title and align its LaTeX replacement with the plot.
-\includegraphics[width=0.76\linewidth,trim=0 29bp 0 0,clip]{figures/answer-score-latency.pdf}%
-% Use percentages of the figure width to align the guide with the 17 s tick.
-\llap{%
-  \setlength{\unitlength}{0.0076\linewidth}%
-  \begin{picture}(100,0)
-    \color[gray]{0.55}\linethickness{0.55pt}%
-    \multiput(80.53,5.72)(0,1.335){22}{\line(0,1){0.78}}%
-  \end{picture}%
-}\\[2pt]
-\makebox[0.76\linewidth]{\hspace{0.08\linewidth}\small\fontfamily{lmss}\selectfont
-  Estimated end-to-end latency (s)}
-\caption{Mean answer score by response-time limit on 350 practice
-queries, with late answers scored as zero. The dashed line marks Qwen-4B's
-first plotted lead.}
-\label{fig:answer-score-latency}
-\end{figure}
-
 \subsection{Where recall and answer scores diverge}
 \label{sec:failure-analysis}
-Against Dense5, Qwen-4B raises the judge score on 115 practice queries,
-ties on 155 and lowers it on 80. The 82 queries with improved Recall@5
-gain 0.125 in mean paired score. Another 77 score higher at unchanged
-recall, which can mask changes in document identity or order
-(Appendix~\ref{app:recall-score}).
+Qwen-4B raises more judge scores than it lowers in the paired practice
+comparison (Figure~\ref{fig:score-diagnostics}). Queries with unchanged
+Recall@5 contribute $+0.0226$ to the overall mean gain of $+0.0445$.
+We compare the saved top-five IDs for those 246 queries. Qwen-4B changes
+the document set on 244 queries and changes only the order on two, whose
+scores tie. The generator can therefore receive different evidence even
+when the number of labelled hits stays the same. With one generation and
+judgement per answer, the contribution of run-to-run variation remains
+uncertain (Appendix~\ref{app:recall-score}).
 
-Of Qwen-4B's 121 zero-score answers, 32 had no labelled document in the
-top 100 and 30 had labelled candidates but none in the top five. Another
-29 had partial coverage and 30 had full coverage. In total, 30 of 131
-fully covered answers scored zero.
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.66\linewidth]{figures/score-diagnostics.pdf}
+\caption{Paired judge-score changes for Qwen-4B versus Dense5 on 350
+practice queries.}
+\label{fig:score-diagnostics}
+\end{figure}
+
+Even with full labelled coverage, 30 of 131 Qwen-4B answers score zero.
+This motivates checking how the generator and judge use the source text.
 
 In the crisis-assets case, the generator says gold and silver are useful
 \emph{during} the crisis. The source says \emph{after}. The judge flags
@@ -569,9 +580,7 @@ Figure~\ref{fig:targeted-follow-up} is stored at
 \path{report/latex_template/figures/targeted-follow-up.pdf}.
 Panel (a) uses \path{rag/results/bm25-compare-dev/summary.json}.
 Panel (b) uses \path{rag/results/document-chunking-768-v1/summary.json}.
-The chunking runner \path{rag/extensions/run_document_chunking.py} and
-its outputs are in
-\href{https://github.com/JackSuuu/edin-mls-26-autumn/tree/817350bc0426c133a72c24bac68ca33ed41b27d8}{commit \texttt{817350b}}.
+The chunking runner is \path{rag/extensions/run_document_chunking.py}.
 Panel (c) uses the local prompt-pilot comparisons in Appendix~\ref{app:alternative-rag}.
 \par\noindent\textbf{System architecture figure:}
 Editable source: \path{report/latex_template/figures/audio-rag-architecture.drawio}.
@@ -589,7 +598,7 @@ The example uses query \texttt{q\_ce474d8f8d548797} from
 \par
 To recompute summaries only, without invoking generation or judge:
 \begin{verbatim}
-~/mls-rag-env/bin/python \
+python \
   rag/extensions/summarize_selection_experiment.py \
   --run rag/results/selection-run-full \
   --judge-prefix judge_json_ --split practice \
@@ -817,7 +826,8 @@ ID within each split. We check that the top five IDs in each ranking match the
 document IDs in its saved generation plan in the same order. Each row in the
 table groups questions by the direction of the Recall@5 change and counts the
 directions of the corresponding judge-score changes. We compare matched
-Qwen-4B with Dense5 throughout.
+Qwen-4B with Dense5 throughout. The plotting script for
+Figure~\ref{fig:score-diagnostics} is \path{report/plot_score_diagnostics.py}.
 
 \begin{center}
 \small
@@ -945,7 +955,8 @@ We used Codex to lay out Figures~\ref{fig:architecture},
 \ref{fig:reranker-ranking-curves}, and \ref{fig:answer-score-latency} in draw.io.
 We used Codex to reduce the height of Figure~\ref{fig:answer-score-latency}
 in the exported vector PDF.
-We used Codex to plot Figure~\ref{fig:targeted-follow-up} from the experiment outputs.
+We used Codex to plot Figures~\ref{fig:score-diagnostics}
+and~\ref{fig:targeted-follow-up} from the experiment outputs.
 EuroLLM via ELM generated answers and automated judgements as described in the
 methodology.
 The authors confirmed the representative diagnostic cases and remain responsible
