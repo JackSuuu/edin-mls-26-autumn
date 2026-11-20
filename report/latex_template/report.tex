@@ -340,7 +340,7 @@ In a separate ten-query paired audio-to-answer probe with all-CUDA ASR
 co-resident on GPU, Dense5 averaged 9.06~s (4.48~s upstream, 4.57~s generation)
 and Qwen-4B averaged 17.14~s (4.43~s upstream, 7.44~s reranking, 5.27~s
 generation; Appendix~\ref{app:reproduce}). Upstream averages 1.8~s slower than
-the 2.65~s probe, reranking is 1.7~s slower than the 5.74~s mean, and the
+the 2.65~s audio-to-context probe, reranking is 1.7~s slower than the 5.74~s mean, and the
 generation gap is 0.70~s versus 0.28~s in Table~\ref{tab:qwen-answers},
 reflecting subset audio/candidate lengths, GPU co-residency, and ELM variance.
 
@@ -399,8 +399,8 @@ sees only gold qrel text, it directly rewards the same qrel-coverage objective
 that the reranker optimises---an alternative explanation for part of the
 measured gain. In our 20-case audit of Qwen-4B zero-score answers, 12 cases
 showed reference-alignment issues and 6 showed judge-text conflicts (3
-representative evidence chains confirmed by the authors;
-Appendix~\ref{app:error-analysis}).
+representative evidence chains confirmed by the authors; the other 17 are
+AI-assisted notes, not human-reviewed; Appendix~\ref{app:error-analysis}).
 
 Targeted follow-ups on BM25 fusion, 768-token chunking, and prompt variants
 yielded no clear overall gains: BM25 found labelled documents outside the dense
@@ -422,8 +422,9 @@ answer-score gain has a 95\% interval including zero ($[-0.0007,0.1127]$).
 Whether this quality gain is worth its 5.74~s reranking cost depends on the
 response-time deadline: under tight deadlines ($<17$~s in our estimated
 all-CUDA ASR plus cached-stage accounting, Figure~\ref{fig:answer-score-latency}),
-Dense5 achieves higher effective answer score when late replies score zero,
-whereas Qwen-4B overtakes at $\ge 17$~s. Under the slower ten-query co-resident
+Dense5 and Qwen-0.6B achieve higher effective answer score when late replies
+score zero, whereas Qwen-4B overtakes at $\approx 17$~s under our cached-stage
+estimate. Under the slower ten-query co-resident
 probe (17.14~s mean for Qwen-4B), that crossover shifts right.
 
 On the 3.50~s reference clip, the Task~1 preset (enabling Task~1 RoPE alongside
@@ -442,14 +443,12 @@ We evaluate Qwen-4B reranking only over a 100-document pool, so smaller pools
 (e.g.\ top-20 or top-30) that retain most of the recall gain at lower reranking
 cost remain untested. Our paired audio-to-answer probe covers ten queries, and
 combining the Task~1 preset with Qwen-4B has not been timed end-to-end. Answers
-rely on a single generation and judgement per arm from a gold-only judge that
-has not been calibrated against human labels, and the dev split was previously
-inspected; next steps include blind human calibration or an independent judge.
-Finally, because reranking gains vary across queries while Qwen-0.6B reranks
-faster than Qwen-4B (1.44 vs.\ 5.68~s median), we would test a query-adaptive
-router~\citep{ray2025metis} choosing among Dense5, Qwen-0.6B, and Qwen-4B under
-a shared response-time limit and GPU budget, evaluated by deadline-bounded
-answer score and reranking GPU time per query.
+rely on a single generation and judgement per arm from a gold-only judge not
+calibrated against human labels; next steps include blind human calibration or
+an independent judge. Finally, because reranking gains vary across queries
+while Qwen-0.6B reranks faster than Qwen-4B (1.44 vs.\ 5.68~s median), we would
+test a query-adaptive router~\citep{ray2025metis} choosing among Dense5,
+Qwen-0.6B, and Qwen-4B under a shared response-time limit and GPU budget.
 
 % References are excluded from the main-body page limit.
 \bibliography{references}
