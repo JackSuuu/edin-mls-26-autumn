@@ -416,32 +416,27 @@ zero); and two prompt variants on 24 practice queries lowered mean score by
 
 \subsection{Conclusion}
 
-Qwen-4B reranking improves practice Recall@5 by $+10.49$ percentage points and
-mean judge score by $+0.0445$ ($[0.0112,0.0788]$) at matched five-document
-prompt length. On dev, Recall@5 rises by $+7.73$ points while the $+0.0567$
-answer-score gain has a 95\% interval including zero ($[-0.0007,0.1127]$).
-Most of the added response time comes from reranking (5.74~s mean on practice),
-so the quality gain must be weighed against the response-time deadline. Under
-tight deadlines ($<17$~s in our estimated all-CUDA ASR plus cached-stage
-accounting, Figure~\ref{fig:answer-score-latency}), Dense5 and Qwen-0.6B
-achieve higher effective answer score when late replies score zero, whereas
-Qwen-4B overtakes at $\approx 17$~s under our cached-stage estimate. Under the
-slower ten-query co-resident probe (17.14~s mean for Qwen-4B), that crossover
-shifts right.
+With transcripts and prompt length held fixed, reranking a 100-document pool
+with Qwen-4B recovers more labelled evidence and improves mean practice answer
+scores over Dense5, whereas expanding the prompt with extra documents does not.
+On the dev split, retrieval improves while the answer-score interval still
+includes zero. Because reranking accounts for most of the added latency, its
+value depends on the response-time deadline. Under tight deadlines when late
+replies receive zero credit, Dense5 and Qwen-0.6B achieve higher effective
+answer scores; Qwen-4B overtakes only at looser budgets (around 17~s under our
+cached-stage estimate with all-CUDA ASR, and later under our slower co-resident
+probe).
 
-The ASR comparison identifies a separate way to reduce response time. On the
-3.50~s reference clip, the Task~1 preset (which enables Task~1 RoPE alongside
-supplied CUDA kernels) cuts mean transcription time to 483.1~ms, 38.2~ms faster
-than GPU PyTorch and 1.50~s faster than all-CUDA's 1,986.1~ms, with identical
-words. In the all-CUDA profile, linear layers account for 83.8\% of kernel
-time. While 38.2~ms is negligible beside 5.74~s of reranking, replacing
-all-CUDA ASR with the Task~1 preset would shift the latency curves left by
-roughly 1.5 to 2~s if proportional. Pairing the Task~1 preset with Qwen-4B
-remains an untested proposal inferred from separate stage measurements. For
-interactive audio RAG, we recommend choosing ASR configurations by transcription
-time at comparable transcript quality, then spending remaining response time and
-GPU budget on evidence selection only when the deadline exceeds the reranker's
-crossover and improves the final answer.
+Optimising ASR provides an independent lever on end-to-end latency. On the
+reference clip, the Task~1 preset matches the reference transcript faster than
+both GPU PyTorch and the all-CUDA path, where linear layers dominate kernel
+time. Replacing all-CUDA ASR with the Task~1 preset should shift the latency
+curves left, whereas its small gain over GPU PyTorch is minor beside reranking
+cost; pairing the Task~1 preset with Qwen-4B remains an untested proposal
+inferred from separate stage measurements. For interactive audio RAG, systems
+should first select the fastest lossless ASR configuration, then spend
+remaining latency and GPU budget on evidence selection only when the deadline
+is generous enough for reranking to improve the final answer.
 
 \subsection{Limitations and next steps}
 
