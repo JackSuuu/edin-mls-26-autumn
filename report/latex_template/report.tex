@@ -437,14 +437,24 @@ select the fastest lossless ASR configuration first and spend remaining latency
 budget on reranking only when the deadline exceeds its crossover.
 
 \subsection{Adaptive routing for multi-user serving}
-Because reranking gains vary across queries and Qwen-0.6B reranks faster than
-Qwen-4B (1.44 vs.\ 5.68~s median) with an uncertain answer gain over Dense5
-(Appendix~\ref{app:reproduce}), future multi-user serving should adapt the
-route per query~\citep{ray2025metis}. Specifically, we would test whether the
-dense top-five score gap predicts each reranker's answer-score gain and route
-each query to Dense5, Qwen-0.6B, or Qwen-4B to maximise predicted gain within
-the remaining latency and GPU budget, evaluated by deadline-bounded answer
-score and reranking GPU time per query.
+
+On the practice split, Qwen-4B improved the mean answer score and added
+5.74~s of reranking time per query. The answer-quality gains varied across
+queries. In a distributed audio RAG service, this variation motivates
+selective reranking across requests that share a GPU budget.
+\citet{ray2025metis} show that the preferred context size and synthesis method
+can vary across queries. The same principle motivates adapting the
+evidence-selection route to each query.
+
+An adaptive routing policy could use features of the initial retrieval
+results to estimate the answer-quality gain of each reranker over Dense5.
+Queries with sufficient evidence among the top dense results could proceed
+directly to generation. For other queries, the policy could choose Qwen-0.6B
+or Qwen-4B according to the expected quality gain, added response time, and
+available GPU budget. The policy could also adapt the number of passages
+passed to the generator, reducing input tokens when a shorter context is
+sufficient. The objective is to maximise expected answer quality across
+requests within end-to-end response-time targets and a shared compute budget.
 
 % References are excluded from the main-body page limit.
 \bibliography{references}
