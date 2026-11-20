@@ -376,7 +376,7 @@ $[-0.0082,0.1014]$), led by queries where the first gold moves earlier
 ($+0.1022$, $n=31$). As a second noise check across separate ELM windows,
 independent Dense5 runs (initial five-arm vs.\ fresh Qwen control) drift by
 $+0.0107$ on practice (0.3267 to 0.3374) and $-0.0177$ on dev (0.3307 to
-0.3133)---roughly a quarter to a third of the Qwen-4B gain, in opposite
+0.3133), roughly a quarter to a third of the Qwen-4B gain, in opposite
 directions across splits (Appendix~\ref{app:recall-score}).
 
 \begin{figure}[H]
@@ -396,8 +396,8 @@ In the crisis-assets case, the generator says gold and silver are useful
 also falsely claims the references omit helicopters and connections
 \citep{leung2026ragerrors,ru2024ragchecker}. More broadly, because the judge
 sees only gold qrel text, it directly rewards the same qrel-coverage objective
-that the reranker optimises---an alternative explanation for part of the
-measured gain. In our 20-case audit of Qwen-4B zero-score answers, 12 cases
+that the reranker optimises, which offers an alternative explanation for part
+of the measured gain. In our 20-case audit of Qwen-4B zero-score answers, 12 cases
 showed reference-alignment issues and 6 showed judge-text conflicts (3
 representative evidence chains confirmed by the authors; the other 17 are
 AI-assisted notes, not human-reviewed; Appendix~\ref{app:error-analysis}).
@@ -415,27 +415,33 @@ zero); and two prompt variants on 24 practice queries lowered mean score by
 \label{sec:conclusion}
 
 \subsection{Conclusion}
+
 Qwen-4B reranking improves practice Recall@5 by $+10.49$ percentage points and
 mean judge score by $+0.0445$ ($[0.0112,0.0788]$) at matched five-document
-prompt length; on dev, Recall@5 rises by $+7.73$ points while the $+0.0567$
+prompt length. On dev, Recall@5 rises by $+7.73$ points while the $+0.0567$
 answer-score gain has a 95\% interval including zero ($[-0.0007,0.1127]$).
-Whether this quality gain is worth its 5.74~s reranking cost depends on the
-response-time deadline: under tight deadlines ($<17$~s in our estimated
-all-CUDA ASR plus cached-stage accounting, Figure~\ref{fig:answer-score-latency}),
-Dense5 and Qwen-0.6B achieve higher effective answer score when late replies
-score zero, whereas Qwen-4B overtakes at $\approx 17$~s under our cached-stage
-estimate. Under the slower ten-query co-resident
-probe (17.14~s mean for Qwen-4B), that crossover shifts right.
+Most of the added response time comes from reranking (5.74~s mean on practice),
+so the quality gain must be weighed against the response-time deadline. Under
+tight deadlines ($<17$~s in our estimated all-CUDA ASR plus cached-stage
+accounting, Figure~\ref{fig:answer-score-latency}), Dense5 and Qwen-0.6B
+achieve higher effective answer score when late replies score zero, whereas
+Qwen-4B overtakes at $\approx 17$~s under our cached-stage estimate. Under the
+slower ten-query co-resident probe (17.14~s mean for Qwen-4B), that crossover
+shifts right.
 
-On the 3.50~s reference clip, the Task~1 preset (enabling Task~1 RoPE alongside
-supplied CUDA kernels) cuts transcription to 483.1~ms---38.2~ms faster than GPU
-PyTorch and 1.50~s faster than all-CUDA's 1,986.1~ms---with identical words.
-While 38.2~ms is negligible beside 5.74~s of reranking, replacing all-CUDA ASR
-with the Task~1 preset would shift the latency curves left by roughly 1.5--2~s
-if proportional. Pairing the Task~1 preset with Qwen-4B remains an untested
-proposal inferred from separate stage timings. In practice, systems should
-select the fastest lossless ASR configuration first and spend remaining latency
-budget on reranking only when the deadline exceeds its crossover.
+The ASR comparison identifies a separate way to reduce response time. On the
+3.50~s reference clip, the Task~1 preset (which enables Task~1 RoPE alongside
+supplied CUDA kernels) cuts mean transcription time to 483.1~ms, 38.2~ms faster
+than GPU PyTorch and 1.50~s faster than all-CUDA's 1,986.1~ms, with identical
+words. In the all-CUDA profile, linear layers account for 83.8\% of kernel
+time. While 38.2~ms is negligible beside 5.74~s of reranking, replacing
+all-CUDA ASR with the Task~1 preset would shift the latency curves left by
+roughly 1.5 to 2~s if proportional. Pairing the Task~1 preset with Qwen-4B
+remains an untested proposal inferred from separate stage measurements. For
+interactive audio RAG, we recommend choosing ASR configurations by transcription
+time at comparable transcript quality, then spending remaining response time and
+GPU budget on evidence selection only when the deadline exceeds the reranker's
+crossover and improves the final answer.
 
 \subsection{Limitations and next steps}
 
